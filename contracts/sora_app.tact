@@ -34,10 +34,31 @@
 //! capabilities that are specific to this project's runtime configuration.
 
 import "@stdlib/deploy";
+import "./types.tact";
+import "./scale_codec.tact";
 
 contract SoraApp with Deployable {
     // Empty init() function is present by default in all Tact contracts
     // since v1.3.0, so the following may be omitted:
     //
     // init() {}
+
+    lockedAmount: Int as uint32 = 0;
+
+    // lock TON to send it to SORA
+    receive(msg: TONTransfer) {
+        require(msg.isValid(), "Invalid TON transfer message");
+        let tokenAmount = context().value;
+        let soraMessage = SoraTransferMessage {
+            sender: newBytes32(),
+            reciever: msg.soraAddress,
+            assetId: msg.assetId,
+            amount: tokenAmount,
+        };
+        let encodedMessage = soraMessage.encode();
+    }
+
+    get fun lockedAmount(): Int {
+        return self.lockedAmount;
+    }
 }
