@@ -28,14 +28,3 @@ extends fun isValid(self: Bytes32): Bool {
     }
     return true;
 }
-
-extends fun toLeBytes(self: Int): map<Int, Int as uint8> {
-    let returnMap: map<Int, Int as uint8> = emptyMap();
-
-    returnMap.set(0, (self >> 24) & 0xff); // Extracts the first byte
-    returnMap.set(1, (self >> 16) & 0xff); // Extracts the second byte
-    returnMap.set(2, (self >> 8) & 0xff);  // Extracts the third byte
-    returnMap.set(3, self & 0xff); // Extracts the fourth byte
-
-    return returnMap;
-}

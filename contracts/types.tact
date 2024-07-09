@@ -1,14 +1,27 @@
 import "./sora_primitives.tact";
 
 struct SoraTransferMessage {
-    sender: Bytes32;
     reciever: Bytes32;
     assetId: Bytes32;
     amount: Int;
 }
 
 extends fun isValid(self: SoraTransferMessage): Bool {
-    return self.sender.isValid() && self.reciever.isValid() && self.assetId.isValid();
+    return self.reciever.isValid() && self.assetId.isValid();
+}
+
+struct SoraEncodedMessage {
+    data: map<Int, Int as uint8>;
+}
+
+fun emptySoraEncodedMessage(): SoraEncodedMessage {
+    return SoraEncodedMessage {
+        data: emptyMap()
+    };
+}
+
+extends fun set(self: SoraEncodedMessage, index: Int, value: Int?) {
+    self.data.set(index, value);
 }
 
 message TONTransfer {
@@ -18,4 +31,8 @@ message TONTransfer {
 
 extends fun isValid(self: TONTransfer): Bool {
     return self.assetId.isValid() && self.soraAddress.isValid();
+}
+
+message Migrate {
+    newContract: Address;
 }
