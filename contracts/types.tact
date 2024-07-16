@@ -33,6 +33,17 @@ extends fun isValid(self: TONTransfer): Bool {
     return self.assetId.isValid() && self.soraAddress.isValid();
 }
 
+message RegisterJetton {
+    assetId: Bytes32;
+    name: String;
+    symbol: String;
+    decimals: Int as uint8;
+}
+
+message JettonTransfer {
+    
+}
+
 message Migrate {
     newContract: Address;
 }

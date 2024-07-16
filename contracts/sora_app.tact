@@ -36,17 +36,17 @@
 import "@stdlib/deploy";
 import "./types.tact";
 import "./scale_codec.tact";
+import "./sora_jetton_wallet.tact";
 
 contract SoraApp with Deployable {
     owner: Address;
 
     lockedAmount: Int as uint32 = 0;
-    messageQueue: map<Int, SoraEncodedMessage>;
+    messageQueue: map<Int, SoraEncodedMessage> = emptyMap();
     nextMessageNonce: Int as uint16 = 0;
 
     init() {
         self.owner = context().sender;
-        self.messageQueue = emptyMap();
     }
 
     // lock TON to send it to SORA
@@ -64,6 +64,21 @@ contract SoraApp with Deployable {
 
         self.messageQueue.set(self.nextMessageNonce, encodedMessage);
         self.nextMessageNonce += 1;
+    }
+
+    //
+    receive(msg: RegisterJetton) {
+        require(context().sender == self.owner, "Only owner can register a jetton");
+        let init: StateInit = initOf SoraJettonWallet(myAddress());
+        send(SendParameters{
+                to: contractAddress(init),
+                body: msg.toCell(),
+                value: ton("0.2"),
+                mode: SendIgnoreErrors,
+                code: init.code,
+                data: init.data,
+            }
+        );
     }
 
     // Migrate contract to another address
