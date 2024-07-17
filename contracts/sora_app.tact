@@ -51,8 +51,6 @@ contract SoraApp with Deployable {
 
     // lock TON to send it to SORA
     receive(msg: TONTransfer) {
-        require(msg.isValid(), "Invalid TON transfer message");
-
         let tokenAmount = context().value;
         let soraMessage = SoraTransferMessage {
             reciever: msg.soraAddress,
@@ -92,5 +90,27 @@ contract SoraApp with Deployable {
 
     get fun messageQueue(): map<Int, SoraEncodedMessage> {
         return self.messageQueue;
+    }
+
+    // todo! remove this function after testing
+    get fun test(): SoraEncodedMessage {
+        let soraTransferMessage = SoraTransferMessage {
+            reciever: Bytes32 {
+                data: 0x83dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a8
+            },
+            assetId: Bytes32 {
+                data: 0x83dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a9
+            },
+            amount: 500,
+        };
+        // let mapka: map<Int, Int as uint8> = emptyMap();
+        // mapka.set(0, 0x83);
+        // mapka.set(1, 0x84);
+        // mapka.set(2, 0x83);
+        // mapka.set(3, 0x83);
+        // return SoraEncodedMessage{
+        //     data: mapka
+        // };
+        return soraTransferMessage.encode();
     }
 }

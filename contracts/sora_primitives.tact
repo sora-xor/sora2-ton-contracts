@@ -1,30 +1,18 @@
 struct Bytes32 {
-    innerMap: map<Int, Int as uint8>;
+    data: Int;
 }
 
 /// Creates a new `Bytes32` instance filled with zeros.
 fun newBytes32(): Bytes32 {
-    let returnMap: map<Int, Int as uint8> = emptyMap();
-
-    let i: Int = 0;
-    while (i < 32) {
-        returnMap.set(i, 0);
-        i += 1;
-    }
-
     return Bytes32 {
-        innerMap: returnMap
+        data: 0
     };
 }
 
-/// Checks if the `Bytes32` instance is valid.
-extends fun isValid(self: Bytes32): Bool {
-    let i: Int = 0;
-    while (i < 32) {
-        let val: Int? = self.innerMap.get(i);
-        if (val == null) {
-            return false;
-        }
-    }
-    return true;
+extends mutates fun set(self: Bytes32, index: Int, value: Int) { 
+    self.data |= value << index * 8 
+}
+
+extends fun get(self: Bytes32, index: Int): Int { 
+    return (self.data >> index * 8) & 0xFF 
 }
