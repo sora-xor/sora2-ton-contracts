@@ -1,28 +1,24 @@
 import "./types.tact";
 
 extends fun encode(self: SoraTransferMessage): SoraEncodedMessage {
-    let returnMap = emptySoraEncodedMessage();
+    let builder: Builder = beginCell();
 
     let i = 0;
-    let cursor = 0;
     while (i < 32) {
-        returnMap.set(cursor, self.reciever.get(i));
-        cursor += 1;
+        builder = builder.storeUint(self.reciever.get(32 - i), 8);
         i += 1;
     }
 
     i = 0;
     while (i < 32) {
-        returnMap.set(cursor, self.assetId.get(i));
-        cursor += 1;
+        builder = builder.storeUint(self.assetId.get(32 - i), 8);
         i += 1;
     }
-    
-    // SoraTransferMessage.amount le bytes set
-    returnMap.set(cursor + 1, (self.amount >> 24) & 0xff);
-    returnMap.set(cursor + 2, (self.amount >> 16) & 0xff); 
-    returnMap.set(cursor + 3, (self.amount >> 8) & 0xff);
-    returnMap.set(cursor + 4, self.amount & 0xff); 
 
-    return returnMap;
+    builder = builder.storeUint((self.amount >> 24) & 0xff, 8)
+           .storeUint((self.amount >> 16) & 0xff, 8)
+           .storeUint((self.amount >> 8) & 0xff, 8)
+           .storeUint(self.amount & 0xff, 8);
+
+    return newSoraEncodedMessage(builder.endCell());
 }

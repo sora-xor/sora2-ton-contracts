@@ -76,8 +76,7 @@ describe('SoraApp', () => {
 
     it('should increase counter', async () => {
         const encodedData = await soraApp.getTest();
-        console.log('======================Some:=========================', encodedData);
-        console.log('======================LEN:=========================', encodedData.data.size);
+        console.log('======================Cell:=========================', encodedData.data);
         
 
         // const increaseTimes = 3;

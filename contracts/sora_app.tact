@@ -39,11 +39,11 @@ import "./scale_codec.tact";
 import "./sora_jetton_wallet.tact";
 
 contract SoraApp with Deployable {
-    owner: Address;
 
+    owner: Address;
     lockedAmount: Int as uint32 = 0;
     messageQueue: map<Int, SoraEncodedMessage> = emptyMap();
-    nextMessageNonce: Int as uint16 = 0;
+    messageNonce: Int as uint16 = 0;
 
     init() {
         self.owner = context().sender;
@@ -60,8 +60,8 @@ contract SoraApp with Deployable {
 
         let encodedMessage = soraMessage.encode();
 
-        self.messageQueue.set(self.nextMessageNonce, encodedMessage);
-        self.nextMessageNonce += 1;
+        self.messageQueue.set(self.messageNonce, encodedMessage);
+        self.messageNonce += 1;
     }
 
     //
@@ -92,25 +92,21 @@ contract SoraApp with Deployable {
         return self.messageQueue;
     }
 
+    get fun messageNonce(): Int {
+        return self.messageNonce;
+    }
+
     // todo! remove this function after testing
     get fun test(): SoraEncodedMessage {
         let soraTransferMessage = SoraTransferMessage {
             reciever: Bytes32 {
-                data: 0x83dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a8
+                data: 0x01dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a8
             },
             assetId: Bytes32 {
                 data: 0x83dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a9
             },
             amount: 500,
         };
-        // let mapka: map<Int, Int as uint8> = emptyMap();
-        // mapka.set(0, 0x83);
-        // mapka.set(1, 0x84);
-        // mapka.set(2, 0x83);
-        // mapka.set(3, 0x83);
-        // return SoraEncodedMessage{
-        //     data: mapka
-        // };
         return soraTransferMessage.encode();
     }
 }

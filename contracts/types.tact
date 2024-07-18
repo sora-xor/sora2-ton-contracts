@@ -7,17 +7,13 @@ struct SoraTransferMessage {
 }
 
 struct SoraEncodedMessage {
-    data: map<Int, Int as uint8>;
+    data: Cell;
 }
 
-fun emptySoraEncodedMessage(): SoraEncodedMessage {
+fun newSoraEncodedMessage(data: Cell): SoraEncodedMessage {
     return SoraEncodedMessage {
-        data: emptyMap()
+        data: data
     };
-}
-
-extends mutates fun set(self: SoraEncodedMessage, index: Int, value: Int?) {
-    self.data.set(index, value);
 }
 
 message TONTransfer {
