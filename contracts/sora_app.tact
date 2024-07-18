@@ -100,12 +100,12 @@ contract SoraApp with Deployable {
     get fun test(): SoraEncodedMessage {
         let soraTransferMessage = SoraTransferMessage {
             reciever: Bytes32 {
-                data: 0x01dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a8
+                data: 0x0101010101010101010101010101010101010101010101010101010101010102
             },
             assetId: Bytes32 {
-                data: 0x83dfd552e63729b472fcbcc8c45ebcc6691702558b68ec7527e1ba403a0f31a9
+                data: 0x0201010101010101010101010101010101010101010101010101010101010103
             },
-            amount: 500,
+            amount: 6666,
         };
         return soraTransferMessage.encode();
     }
