@@ -34,79 +34,71 @@
 //! capabilities that are specific to this project's runtime configuration.
 
 import "@stdlib/deploy";
-import "./types.tact";
-import "./scale_codec.tact";
-import "./sora_jetton_wallet.tact";
+import "@stdlib/ownable";
+import "./bridge_call.tact";
 
-contract SoraApp with Deployable {
+message BridgeMessage {
+    nonce: Int as uint32;
+    message: SoraEncodedCall;
+}
 
+message TONTransfer {
+    soraAddress: Bytes32;
+}
+
+message Reset {}
+
+message Migrate {
+    receiver: Address;
+}
+
+contract SoraApp with Deployable, OwnableTransferable {
     owner: Address;
-    lockedAmount: Int as uint32 = 0;
-    messageQueue: map<Int, SoraEncodedMessage> = emptyMap();
-    messageNonce: Int as uint16 = 0;
-
-    init() {
-        self.owner = context().sender;
+    lockedAmount: Int as uint128 = 0;
+    messageNonce: Int as uint64 = 0;
+    init(){
+        self.owner = sender();
     }
 
     // lock TON to send it to SORA
-    receive(msg: TONTransfer) {
-        let tokenAmount = context().value;
-        let soraMessage = SoraTransferMessage {
-            reciever: msg.soraAddress,
-            assetId: msg.assetId,
-            amount: tokenAmount,
+    receive(msg: TONTransfer){
+        let tokenAmount: Int = context().value;
+        self.lockedAmount += tokenAmount;
+        let sender: Address = context().sender;
+        let soraMessage: SoraTransferMessage = SoraTransferMessage{
+            recipient: msg.soraAddress,
+            sender: sender,
+            // todo! Replace with newAddress(0, 0) when tact 1.4.1 released
+            token: newAddress(0, 0x1000000000000000000000000000000000000000000000000000000000000000),
+            amount: newBalance(tokenAmount)
         };
-
-        let encodedMessage = soraMessage.encode();
-
-        self.messageQueue.set(self.messageNonce, encodedMessage);
         self.messageNonce += 1;
+        emit(BridgeMessage {
+            nonce: self.messageNonce,
+            message: soraMessage.encode()
+        }.toCell());
     }
-
-    //
-    receive(msg: RegisterJetton) {
-        require(context().sender == self.owner, "Only owner can register a jetton");
-        let init: StateInit = initOf SoraJettonWallet(myAddress());
-        send(SendParameters{
-                to: contractAddress(init),
-                body: msg.toCell(),
-                value: ton("0.2"),
-                mode: SendIgnoreErrors,
-                code: init.code,
-                data: init.data,
-            }
-        );
+    
+    receive(msg: Reset) {
+        self.requireOwner();
+        self.messageNonce = 0;
     }
-
-    // Migrate contract to another address
+    
     receive(msg: Migrate) {
-        require(context().sender == self.owner, "Only owner can migrate the contract");
+        self.requireOwner();
+        send(SendParameters{
+            to: msg.receiver,
+            bounce: true,
+            value: 0,
+            mode: SendRemainingBalance + SendIgnoreErrors
+        });
     }
 
     get fun lockedAmount(): Int {
         return self.lockedAmount;
     }
 
-    get fun messageQueue(): map<Int, SoraEncodedMessage> {
-        return self.messageQueue;
-    }
-
     get fun messageNonce(): Int {
         return self.messageNonce;
-    }
-
-    // todo! remove this function after testing
-    get fun test(): SoraEncodedMessage {
-        let soraTransferMessage = SoraTransferMessage {
-            reciever: Bytes32 {
-                data: 0x0101010101010101010101010101010101010101010101010101010101010102
-            },
-            assetId: Bytes32 {
-                data: 0x0201010101010101010101010101010101010101010101010101010101010103
-            },
-            amount: 6666,
-        };
-        return soraTransferMessage.encode();
     }
 }

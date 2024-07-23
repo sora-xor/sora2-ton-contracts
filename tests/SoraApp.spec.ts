@@ -34,8 +34,8 @@
 //! capabilities that are specific to this project's runtime configuration.
 
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox';
-import { toNano } from '@ton/core';
-import { SoraApp } from '../wrappers/SoraApp';
+import { Address, address, beginCell, Builder, toNano } from '@ton/core';
+import { loadBridgeMessage, SoraApp } from '../wrappers/SoraApp';
 import '@ton/test-utils';
 
 describe('SoraApp', () => {
@@ -53,7 +53,7 @@ describe('SoraApp', () => {
         const deployResult = await soraApp.send(
             deployer.getSender(),
             {
-                value: toNano('0.05'),
+                value: toNano(1),
             },
             {
                 $$type: 'Deploy',
@@ -74,48 +74,44 @@ describe('SoraApp', () => {
         // blockchain and soraApp are ready to use
     });
 
-    it('should increase counter', async () => {
-        const encodedData = await soraApp.getTest();
-        console.log('======================Cell:=========================', encodedData.data);
-        
+    it('should transfer', async () => {
+        const sender = await blockchain.treasury("sender");
+        const t = await soraApp.send(sender.getSender(), {
+            value: toNano(1),
+        },
+            {
+                $$type: "TONTransfer",
+                soraAddress: {
+                    $$type: "Bytes32",
+                    data: BigInt(14)
+                }
+            }
+        );
+        for (const event of t.externals) {
+            console.log(event);
+            const message = loadBridgeMessage(event.body.asSlice());
+            console.log(message);
+            const slice = message.message.data.beginParse();
+            const call = slice.loadUint(16);
+            console.log(call);
+            slice.loadUint(5);
+            const token = slice.loadAddress();
+            slice.loadUint(5);
+            const senderAddress = slice.loadAddress();
+            const recipient = slice.loadBuffer(32);
+            const amount = slice.loadUint(128);
+            slice.endParse();
+            console.log('======================Cell:=========================');
+            console.log({
+                call: call,
+                token: token.toRawString(),
+                tokenRaw: token.toRaw(),
+                sender: senderAddress.toRawString(),
+                senderRaw: senderAddress.toRaw(),
+                recipient: recipient,
+                amount: amount
+            });
 
-        // const increaseTimes = 3;
-        // for (let i = 0; i < increaseTimes; i++) {
-        //     // console.log(`increase ${i + 1}/${increaseTimes}`);
-
-        //     // // const increaser = await blockchain.treasury('increaser' + i);
-
-        //     // const encodedData = await soraApp.getTest();
-
-        //     // console.log('======================Some:=========================', encodedData);
-
-        //     // const increaseBy = BigInt(Math.floor(Math.random() * 100));
-
-        //     // console.log('increasing by', increaseBy);
-
-        //     // const increaseResult = await clicker.send(
-        //     //     increaser.getSender(),
-        //     //     {
-        //     //         value: toNano('0.05'),
-        //     //     },
-        //     //     {
-        //     //         $$type: 'Add',
-        //     //         queryId: 0n,
-        //     //         amount: increaseBy,
-        //     //     }
-        //     // );
-
-        //     // expect(increaseResult.transactions).toHaveTransaction({
-        //     //     from: increaser.address,
-        //     //     to: clicker.address,
-        //     //     success: true,
-        //     // });
-
-        //     // const counterAfter = await clicker.getCounter();
-
-        //     // console.log('counter after increasing', counterAfter);
-
-        //     // expect(counterAfter).toBe(counterBefore + increaseBy);
-        // }
+        }
     });
 });
