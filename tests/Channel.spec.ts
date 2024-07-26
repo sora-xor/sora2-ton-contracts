@@ -35,22 +35,27 @@
 
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox';
 import { Address, address, beginCell, Builder, toNano } from '@ton/core';
-import { loadBridgeMessage, SoraApp } from '../wrappers/SoraApp';
+import { loadSendOutboundMessage, } from '../wrappers/TonApp';
 import '@ton/test-utils';
+import assert from 'assert';
+import { Channel, loadOutboundMessage } from '../wrappers/Channel';
 
-describe('SoraApp', () => {
+describe('Channel', () => {
     let blockchain: Blockchain;
     let deployer: SandboxContract<TreasuryContract>;
-    let soraApp: SandboxContract<SoraApp>;
+    let app: SandboxContract<TreasuryContract>;
+    let channel: SandboxContract<Channel>;
 
     beforeEach(async () => {
         blockchain = await Blockchain.create();
 
-        soraApp = blockchain.openContract(await SoraApp.fromInit());
-
         deployer = await blockchain.treasury('deployer');
+        app = await blockchain.treasury('app');
 
-        const deployResult = await soraApp.send(
+        channel = blockchain.openContract(await Channel.fromInit());
+
+
+        const deployResult = await channel.send(
             deployer.getSender(),
             {
                 value: toNano(1),
@@ -63,55 +68,64 @@ describe('SoraApp', () => {
 
         expect(deployResult.transactions).toHaveTransaction({
             from: deployer.address,
-            to: soraApp.address,
+            to: channel.address,
             deploy: true,
             success: true,
         });
+
+        const registerResult = await channel.send(
+            deployer.getSender(),
+            {
+                value: toNano(1),
+            },
+            {
+                $$type: 'RegisterApp',
+                app: app.address
+            }
+        );
+
+        expect(deployResult.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: channel.address,
+            success: true,
+        });
+
+        assert(await channel.getIsApp(app.address));
     });
 
     it('should deploy', async () => {
         // the check is done inside beforeEach
-        // blockchain and soraApp are ready to use
+        // blockchain and channel are ready to use
     });
 
     it('should transfer', async () => {
         const sender = await blockchain.treasury("sender");
-        const t = await soraApp.send(sender.getSender(), {
+        console.log(deployer.address, await deployer.getBalance());
+        console.log(sender.address, await sender.getBalance());
+        const result = await channel.send(app.getSender(), {
             value: toNano(1),
         },
             {
-                $$type: "TONTransfer",
-                soraAddress: {
-                    $$type: "Bytes32",
-                    data: BigInt(14)
+                $$type: "SendOutboundMessage",
+                sender: sender.address,
+                message: {
+                    $$type: "SoraEncodedCall",
+                    data: beginCell().storeInt(12, 32).endCell()
                 }
             }
         );
-        for (const event of t.externals) {
-            console.log(event);
-            const message = loadBridgeMessage(event.body.asSlice());
-            console.log(message);
-            const slice = message.message.data.beginParse();
-            const call = slice.loadUint(16);
-            console.log(call);
-            slice.loadUint(5);
-            const token = slice.loadAddress();
-            slice.loadUint(5);
-            const senderAddress = slice.loadAddress();
-            const recipient = slice.loadBuffer(32);
-            const amount = slice.loadUint(128);
-            slice.endParse();
-            console.log('======================Cell:=========================');
-            console.log({
-                call: call,
-                token: token.toRawString(),
-                tokenRaw: token.toRaw(),
-                sender: senderAddress.toRawString(),
-                senderRaw: senderAddress.toRaw(),
-                recipient: recipient,
-                amount: amount
-            });
-
-        }
+        const transfer = result.events[0];
+        assert(transfer.type == "message_sent");
+        assert(transfer.bounced == false);
+        assert(transfer.from.toString() == app.address.toString());
+        assert(transfer.to.toString() == channel.address.toString());
+        const tonTransfer = loadSendOutboundMessage(transfer.body.asSlice());
+        assert(tonTransfer.sender.toString() == sender.address.toString());
+        assert(tonTransfer.message.data.bits.toString() == "0000000C");
+        const outboundEvent = result.externals[0];
+        const outboundMessage = loadOutboundMessage(outboundEvent.body.asSlice());
+        assert(outboundMessage.nonce == BigInt(1));
+        assert(outboundMessage.message.data.bits.toString() == "0000000C");
+        assert(outboundMessage.source.toString() == app.address.toString());
     });
 });

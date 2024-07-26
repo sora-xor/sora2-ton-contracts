@@ -1,11 +1,11 @@
 import { Address, toNano } from '@ton/core';
-import { loadBridgeMessage, SoraApp } from '../wrappers/SoraApp';
+import { loadOutboundMessage, TonApp } from '../wrappers/TonApp';
 import { NetworkProvider } from '@ton/blueprint';
 import { TonClient4 } from '@ton/ton';
 
 export async function run(provider: NetworkProvider) {
     const api = provider.api() as TonClient4;
-    const address = Address.parseFriendly("EQAd7XM2ZRHRVZ1nxLIc2mF9bCj5iVSxmxoa5wpznBaXpk4x").address;
+    const address = Address.parseFriendly("EQAdHwT0uvzVSBRkxlypUqfwhLwEADJugS8TdqAmgkOe").address;
     const txs = await api.getAccountTransactions(address, BigInt(23967369000001), Buffer.from("d3afe2e449ef5682efb024e2d60b69f9870e96e1a70656da44f6ab28558c4c4a", "hex"));
     console.log(txs);
     for (const tx of txs) {

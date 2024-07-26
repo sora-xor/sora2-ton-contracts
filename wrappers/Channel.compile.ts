@@ -2,7 +2,7 @@ import { CompilerConfig } from '@ton/blueprint';
 
 export const compile: CompilerConfig = {
     lang: 'tact',
-    target: 'contracts/sora_app.tact',
+    target: 'contracts/channel.tact',
     options: {
         debug: true,
     },

@@ -36,52 +36,53 @@
 import "@stdlib/deploy";
 import "@stdlib/ownable";
 import "./bridge_call.tact";
+import "./channel.tact";
 
-message BridgeMessage {
-    nonce: Int as uint32;
-    message: SoraEncodedCall;
-}
-
-message TONTransfer {
+message SendTon {
     soraAddress: Bytes32;
+    amount: Int;
 }
-
-message Reset {}
 
 message Migrate {
     receiver: Address;
 }
 
-contract SoraApp with Deployable, OwnableTransferable {
-    owner: Address;
+contract TonApp with Deployable, OwnableTransferable {
+    owner: Address; // Channel
     lockedAmount: Int as uint128 = 0;
-    messageNonce: Int as uint64 = 0;
-    init(){
-        self.owner = sender();
+
+    init(channel: Address){
+        self.owner = channel;
     }
 
     // lock TON to send it to SORA
-    receive(msg: TONTransfer){
-        let tokenAmount: Int = context().value;
-        self.lockedAmount += tokenAmount;
+    receive(msg: SendTon){
+        require(context().value > msg.amount, "Amount should be greater than value");
         let sender: Address = context().sender;
-        let soraMessage: SoraTransferMessage = SoraTransferMessage{
+        let soraMessage: SoraTonTransferMessage = SoraTonTransferMessage{
             recipient: msg.soraAddress,
             sender: sender,
-            // todo! Replace with newAddress(0, 0) when tact 1.4.1 released
-            token: newAddress(0, 0x1000000000000000000000000000000000000000000000000000000000000000),
-            amount: newBalance(tokenAmount)
+            amount: msg.amount
         };
-        self.messageNonce += 1;
-        emit(BridgeMessage {
-            nonce: self.messageNonce,
-            message: soraMessage.encode()
-        }.toCell());
-    }
-    
-    receive(msg: Reset) {
-        self.requireOwner();
-        self.messageNonce = 0;
+        dump("Before reserve");
+        nativeReserve(msg.amount, 4);
+        dump("After reserve");
+        self.lockedAmount += msg.amount;
+        dump("After lock");
+        dump(context().value);
+        dump(self.lockedAmount);
+        send(
+            SendParameters {
+                to: self.owner,
+                value: 0,
+                mode: SendRemainingBalance | SendBounceIfActionFail,
+                body: SendOutboundMessage {
+                    message: soraMessage.encode(),
+                    sender: context().sender
+                }.toCell()
+            }
+        );
+        dump("After send to channel");
     }
     
     receive(msg: Migrate) {
@@ -96,9 +97,5 @@ contract SoraApp with Deployable, OwnableTransferable {
 
     get fun lockedAmount(): Int {
         return self.lockedAmount;
-    }
-
-    get fun messageNonce(): Int {
-        return self.messageNonce;
     }
 }

@@ -34,24 +34,54 @@
 //! capabilities that are specific to this project's runtime configuration.
 
 import { toNano } from '@ton/core';
-import { SoraApp } from '../wrappers/SoraApp';
+import { TonApp } from '../wrappers/TonApp';
 import { NetworkProvider } from '@ton/blueprint';
+import { Channel } from '../wrappers/Channel';
 
 export async function run(provider: NetworkProvider) {
-    const soraApp = provider.open(await SoraApp.fromInit());
+    const channel = provider.open(await Channel.fromInit());
+    const tonApp = provider.open(await TonApp.fromInit(channel.address));
 
-    await soraApp.send(
+    await channel.send(
         provider.sender(),
         {
             value: toNano('0.05'),
         },
         {
             $$type: 'Deploy',
-            queryId: 0n,
+            queryId: 5n,
         }
     );
 
-    await provider.waitForDeploy(soraApp.address);
+    await provider.waitForDeploy(channel.address, 20);
+
+    await tonApp.send(
+        provider.sender(),
+        {
+            value: toNano('0.05'),
+        },
+        {
+            $$type: 'Deploy',
+            queryId: 5n,
+        }
+    );
+
+    await provider.waitForDeploy(tonApp.address, 20);
+
+    await channel.send(
+        provider.sender(),
+        {
+            value: toNano(0.2),
+        },
+        {
+            $$type: 'RegisterApp',
+            app: tonApp.address
+        }
+    );
+    console.log({
+        tonApp: tonApp.address,
+        channel: channel.address
+    });
 
     // run methods on `soraApp`
 }
