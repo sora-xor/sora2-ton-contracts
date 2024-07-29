@@ -64,13 +64,8 @@ contract TonApp with Deployable, OwnableTransferable {
             sender: sender,
             amount: msg.amount
         };
-        dump("Before reserve");
         nativeReserve(msg.amount, 4);
-        dump("After reserve");
         self.lockedAmount += msg.amount;
-        dump("After lock");
-        dump(context().value);
-        dump(self.lockedAmount);
         send(
             SendParameters {
                 to: self.owner,
