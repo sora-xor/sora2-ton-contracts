@@ -25,9 +25,11 @@ message RegisterApp {
 message Reset {}
 
 contract Channel with Deployable, OwnableTransferable {
+    override const storageReserve: Int = ton("0.01");
     owner: Address;
     outboundNonce: Int as uint64 = 0;
     apps: map<Address, Bool>;
+
     init(){
         self.owner = sender();
     }
@@ -45,63 +47,35 @@ contract Channel with Deployable, OwnableTransferable {
     }
     
     fun requireApp() {
-        require(self.apps.get(context().sender) == true, "Only apps can send messages");
-    }
-    
-    // Ensure that we have some amount of TON on this contract after execution
-    fun ensureMinBalance() {
-        nativeReserve(ton("0.1"), 0); 
+        require(self.apps.get(sender()) == true, "Only apps can send messages");
     }
     
     receive(msg: SendOutboundMessage) {
         self.requireApp();
-        self.ensureMinBalance();
         self.outboundNonce += 1;
         emit(OutboundMessage {
             nonce: self.outboundNonce,
             message: msg.message,
-            source: context().sender,
+            source: sender(),
         }.toCell());
-        send(SendParameters {
-            to: msg.sender,
-            value: 0,
-            mode: SendIgnoreErrors | SendRemainingBalance,
-        });
+        self.forward(msg.sender, null, false, null);
     }
     
     receive(msg: RegisterApp) {
         self.requireOwner();
-        self.ensureMinBalance();
         self.apps.set(msg.app, true);
-        send(SendParameters {
-            to: sender(),
-            value: 0,
-            mode: SendIgnoreErrors | SendRemainingBalance,
-        });
+        self.notify(null);
     }
     
     receive(msg: Reset) {
         self.requireOwner();
-        self.ensureMinBalance();
         self.outboundNonce = 0;
-        send(SendParameters {
-            to: sender(),
-            value: 0,
-            mode: SendIgnoreErrors | SendRemainingBalance,
-        });
+        self.notify(null);
     }
     
     receive(msg: SendInboundMessage) {
         self.requireOwner();
-        self.ensureMinBalance();
         require(self.apps.get(msg.target) == true, "Can only send messages to apps");
-        send(
-            SendParameters {
-                to: msg.target,
-                value: 0,
-                mode: SendRemainingValue,
-                body: msg.message
-            }
-        );
+        self.forward(msg.target, msg.message, true, null);
     }
 }

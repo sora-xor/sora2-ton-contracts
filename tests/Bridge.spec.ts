@@ -39,20 +39,40 @@ import { loadSendOutboundMessage, loadSendTon, TonApp } from '../wrappers/TonApp
 import '@ton/test-utils';
 import assert from 'assert';
 import { Channel } from '../wrappers/Channel';
+import { JettonApp } from '../wrappers/JettonApp';
+import { JettonAppWallet } from '../wrappers/JettonAppWallet';
+import { SampleJetton } from '../wrappers/Jetton';
+import { JettonDefaultWallet } from '../wrappers/JettonWallet';
 
 describe('Bridge', () => {
     let blockchain: Blockchain;
     let deployer: SandboxContract<TreasuryContract>;
+    let jettonOwner: SandboxContract<TreasuryContract>;
     let channel: SandboxContract<Channel>;
     let tonApp: SandboxContract<TonApp>;
+    let jetton: SandboxContract<SampleJetton>;
+    let jettonWallet: SandboxContract<JettonDefaultWallet>;
+    let jettonApp: SandboxContract<JettonApp>;
+    let jettonAppWallet: SandboxContract<JettonAppWallet>;
 
     beforeEach(async () => {
         blockchain = await Blockchain.create();
 
         deployer = await blockchain.treasury('deployer');
+
+        jettonOwner = await blockchain.treasury('jettonOwner');
+
         channel = blockchain.openContract(await Channel.fromInit());
 
         tonApp = blockchain.openContract(await TonApp.fromInit(channel.address));
+
+        jetton = blockchain.openContract(await SampleJetton.fromInit(jettonOwner.address, beginCell().storeStringTail("JettonSample").asCell(), toNano("1000")));
+
+        jettonApp = blockchain.openContract(await JettonApp.fromInit(channel.address));
+
+        jettonAppWallet = blockchain.openContract(await JettonAppWallet.fromInit(jettonApp.address, jetton.address));
+
+        jettonWallet = blockchain.openContract(await JettonDefaultWallet.fromInit(jetton.address, jettonAppWallet.address));
 
         const channelDeployResult = await channel.send(
             deployer.getSender(),
