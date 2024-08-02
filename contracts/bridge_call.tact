@@ -36,5 +36,6 @@ extends fun encode(self: SoraTonTransferMessage): SoraEncodedCall {
     builder = builder.storeAlignedAddress(self.sender);
     builder = builder.storeBytes32(self.recipient);
     builder = builder.storeUint(self.amount, 128);
+    require(builder.bits() == 944, "Wrong call encoding");
     return newEncodedCall(builder.endCell());
 }

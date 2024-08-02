@@ -47,30 +47,33 @@ message Migrate {
     receiver: Address;
 }
 
+message MigrateInternal {}
+
 contract TonApp with Deployable, OwnableTransferable {
     owner: Address; // Channel
     lockedAmount: Int as uint128 = 0;
+    stopped: Bool = false;
 
     init(channel: Address){
         self.owner = channel;
     }
 
+    fun requireOperational() {
+        require(self.stopped == false, "App is stopped");
+    }
+
     // lock TON to send it to SORA
     receive(msg: SendTon){
+        self.requireOperational();
         require(context().value > msg.amount, "Amount should be greater than value");
-        let sender: Address = context().sender;
+        let sender: Address = sender();
         let soraMessage: SoraTonTransferMessage = SoraTonTransferMessage{
             recipient: msg.soraAddress,
             sender: sender,
             amount: msg.amount
         };
-        dump("Before reserve");
         nativeReserve(msg.amount, 4);
-        dump("After reserve");
         self.lockedAmount += msg.amount;
-        dump("After lock");
-        dump(context().value);
-        dump(self.lockedAmount);
         send(
             SendParameters {
                 to: self.owner,
@@ -78,24 +81,34 @@ contract TonApp with Deployable, OwnableTransferable {
                 mode: SendRemainingBalance | SendBounceIfActionFail,
                 body: SendOutboundMessage {
                     message: soraMessage.encode(),
-                    sender: context().sender
+                    sender: sender()
                 }.toCell()
             }
         );
-        dump("After send to channel");
+    }
+    
+    receive(msg: MigrateInternal) {
+        self.requireOperational();
+        self.lockedAmount += context().value;
     }
     
     receive(msg: Migrate) {
         self.requireOwner();
+        self.requireOperational();
+        self.stopped = true;
         send(SendParameters{
             to: msg.receiver,
-            bounce: true,
             value: 0,
-            mode: SendRemainingBalance + SendIgnoreErrors
+            mode: SendRemainingBalance | SendIgnoreErrors | SendDestroyIfZero,
+            body: MigrateInternal {}.toCell()
         });
     }
 
     get fun lockedAmount(): Int {
         return self.lockedAmount;
+    }
+
+    get fun isStopped(): Bool {
+        return self.stopped;
     }
 }

@@ -49,7 +49,7 @@ export async function run(provider: NetworkProvider) {
         },
         {
             $$type: 'Deploy',
-            queryId: 5n,
+            queryId: 6n,
         }
     );
 
@@ -62,7 +62,7 @@ export async function run(provider: NetworkProvider) {
         },
         {
             $$type: 'Deploy',
-            queryId: 5n,
+            queryId: 6n,
         }
     );
 
