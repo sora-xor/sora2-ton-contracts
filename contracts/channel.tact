@@ -30,8 +30,9 @@ contract Channel with Deployable, OwnableTransferable {
     outboundNonce: Int as uint64 = 0;
     apps: map<Address, Bool>;
 
-    init(){
-        self.owner = sender();
+    init(owner: Address){
+        require(sender() == owner, "Only owner can initialize this contract");
+        self.owner = owner;
     }
     
     get fun isApp(app: Address): Bool {

@@ -12,7 +12,7 @@ export async function run(provider: NetworkProvider) {
         console.log(tx.tx.outMessagesCount);
         for (const [id, out] of tx.tx.outMessages) {
             console.log(out);
-            const message = loadBridgeMessage(out.body.asSlice());
+            const message = loadOutboundMessage(out.body.asSlice());
             console.log(message);
             const slice = message.message.data.beginParse();
             const call = slice.loadUint(16);

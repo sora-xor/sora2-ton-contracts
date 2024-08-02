@@ -39,7 +39,7 @@ import { NetworkProvider } from '@ton/blueprint';
 import { Channel } from '../wrappers/Channel';
 
 export async function run(provider: NetworkProvider) {
-    const channel = provider.open(await Channel.fromInit());
+    const channel = provider.open(await Channel.fromInit(provider.sender().address!));
     const tonApp = provider.open(await TonApp.fromInit(channel.address));
 
     await channel.send(
@@ -49,7 +49,7 @@ export async function run(provider: NetworkProvider) {
         },
         {
             $$type: 'Deploy',
-            queryId: 6n,
+            queryId: 1n,
         }
     );
 
@@ -62,7 +62,7 @@ export async function run(provider: NetworkProvider) {
         },
         {
             $$type: 'Deploy',
-            queryId: 6n,
+            queryId: 1n,
         }
     );
 

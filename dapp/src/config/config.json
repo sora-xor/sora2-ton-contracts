@@ -1,0 +1,139 @@
+{
+    "ChannelUi": {
+        "defaultAddress": "EQDiG8B1t_iYrR5MWlPZ6R5717l90lLj9vwn8HI2QlaoEfzc",
+        "tabName": "Channel",
+        "sendFunctions": {
+            "sendRegisterApp": {
+                "tabName": "Register App",
+                "params": {
+                    "app": {
+                        "fieldTitle": ""
+                    }
+                }
+            },
+            "sendInboundMessage": {
+                "tabName": "Inbound Message",
+                "params": {
+                    "target": {
+                        "fieldTitle": ""
+                    },
+                    "message": {
+                        "fieldTitle": ""
+                    },
+                    "value": {
+                        "fieldTitle": "",
+                        "overrideWithDefault": false
+                    }
+                }
+            },
+            "sendDeploy": {
+                "tabName": "Deploy",
+                "params": {
+                    "queryId": {
+                        "fieldTitle": ""
+                    }
+                }
+            },
+            "sendChangeOwner": {
+                "tabName": "Change Owner",
+                "params": {
+                    "newOwner": {
+                        "fieldTitle": ""
+                    },
+                    "queryId": {
+                        "fieldTitle": ""
+                    }
+                }
+            }
+        },
+        "getFunctions": {
+            "getIsApp": {
+                "tabName": "Is app",
+                "params": {
+                    "app": {
+                        "fieldTitle": ""
+                    }
+                },
+                "outNames": []
+            },
+            "getApps": {
+                "tabName": "Apps",
+                "params": {},
+                "outNames": []
+            },
+            "getOutboundNonce": {
+                "tabName": "Outbound nonce",
+                "params": {},
+                "outNames": []
+            },
+            "getOwner": {
+                "tabName": "Owner",
+                "params": {},
+                "outNames": []
+            }
+        },
+        "definedTypes": {}
+    },
+    "TonAppUi": {
+        "defaultAddress": "EQDPrO3R-RvXIHv-ONN4qrdaTQ7h7UZfdydk3qqNb1b6WDZE",
+        "tabName": "TON App",
+        "sendFunctions": {
+            "sendTon": {
+                "tabName": "Send TON",
+                "params": {
+                    "recepient": {
+                        "fieldTitle": ""
+                    },
+                    "amount": {
+                        "fieldTitle": ""
+                    }
+                }
+            },
+            "sendMigrate": {
+                "tabName": "Migrate",
+                "params": {
+                    "receiver": {
+                        "fieldTitle": ""
+                    }
+                }
+            },
+            "sendDeploy": {
+                "tabName": "Deploy",
+                "params": {
+                    "queryId": {
+                        "fieldTitle": ""
+                    }
+                }
+            },
+            "sendChangeOwner": {
+                "tabName": "Change Owner",
+                "params": {
+                    "newOwner": {
+                        "fieldTitle": ""
+                    },
+                    "queryId": {
+                        "fieldTitle": ""
+                    }
+                }
+            }
+        },
+        "getFunctions": {
+            "getLockedAmount": {
+                "tabName": "Locked amount",
+                "params": {},
+                "outNames": []
+            },
+            "getIsStopped": {
+                "tabName": "Is stopped",
+                "params": {},
+                "outNames": []
+            },
+            "getOwner": {
+                "tabName": "Owner",
+                "params": {},
+                "outNames": []
+            }
+        },
+        "definedTypes": {}
+    }
+}

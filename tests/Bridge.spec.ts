@@ -50,7 +50,7 @@ describe('Bridge', () => {
         blockchain = await Blockchain.create();
 
         deployer = await blockchain.treasury('deployer');
-        channel = blockchain.openContract(await Channel.fromInit());
+        channel = blockchain.openContract(await Channel.fromInit(deployer.address));
 
         tonApp = blockchain.openContract(await TonApp.fromInit(channel.address));
 
