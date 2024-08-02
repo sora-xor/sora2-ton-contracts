@@ -76,6 +76,10 @@ contract JettonAppWallet with Deployable, Ownable {
     receive(msg: TokenNotification) {
         require(self.wallet != null, "Wallet should be initialized");
         require(sender() == self.wallet, "Only wallet can send this message");
+        dump("=================== sdasdasdasd =======================");
+        dump("=================== sdasdasdasd =======================");
+        dump("=================== sdasdasdasd =======================");
+        dump("=================== sdasdasdasd =======================");
         let recepient: SendJetton = SendJetton.fromSlice(msg.forward_payload);
         self.forward(self.owner, SendJettonInternal {
             master: self.master,
@@ -115,6 +119,7 @@ contract JettonApp with Deployable, OwnableTransferable {
     }
     
     receive(msg: RegisterJetton) {
+        require(sender() == self.owner, "Only owner can register jetton");
         let sinit: StateInit = initOf JettonAppWallet(myAddress(), msg.master);
         send(SendParameters{
                 to: contractAddress(sinit),
@@ -127,6 +132,5 @@ contract JettonApp with Deployable, OwnableTransferable {
                 data: sinit.data
             }
         );
-        
     }
 }
