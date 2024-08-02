@@ -46,17 +46,17 @@ import assert from 'assert';
 describe('TonApp', () => {
     let blockchain: Blockchain;
     let deployer: SandboxContract<TreasuryContract>;
-    // let channel: SandboxContract<TreasuryContract>;
+    let channel: SandboxContract<TreasuryContract>;
     let alice: SandboxContract<TreasuryContract>; // Jetton Master Admin
     let jettonApp: SandboxContract<JettonApp>;
-    let channel: SandboxContract<Channel>;
+    // let channel: SandboxContract<Channel>;
 
     let usdtMaster: SandboxContract<SampleJetton>;
 
     beforeEach(async () => {
         blockchain = await Blockchain.create();
         deployer = await blockchain.treasury('deployer');
-        // channel = await blockchain.treasury('channel');
+        channel = await blockchain.treasury('channel');
         alice = await blockchain.treasury('alice');
 
         let contentBuilder = beginCell()
@@ -64,10 +64,10 @@ describe('TonApp', () => {
 
         usdtMaster = blockchain.openContract(await SampleJetton.fromInit(alice.address, content, 100000000000n));
         jettonApp = blockchain.openContract(await JettonApp.fromInit(channel.address));
-        channel = blockchain.openContract(await Channel.fromInit());
+        // channel = blockchain.openContract(await Channel.fromInit());
 
         const jettonAppDeployResult = await jettonApp.send(
-            deployer.getSender(),
+            channel.getSender(),
             {
                 value: toNano(1),
             },
@@ -88,16 +88,16 @@ describe('TonApp', () => {
             }
         );
 
-        const channelDeployResult = await channel.send(
-            deployer.getSender(),
-            {
-                value: toNano(1),
-            },
-            {
-                $$type: 'Deploy',
-                queryId: 0n,
-            }
-        );
+        // const channelDeployResult = await channel.send(
+        //     deployer.getSender(),
+        //     {
+        //         value: toNano(1),
+        //     },
+        //     {
+        //         $$type: 'Deploy',
+        //         queryId: 0n,
+        //     }
+        // );
 
         expect(jettonAppDeployResult.transactions).toHaveTransaction({
             from: channel.address,
@@ -113,12 +113,12 @@ describe('TonApp', () => {
             success: true,
         });
 
-        expect(channelDeployResult.transactions).toHaveTransaction({
-            from: deployer.address,
-            to: channel.address,
-            deploy: true,
-            success: true,
-        });
+        // expect(channelDeployResult.transactions).toHaveTransaction({
+        //     from: deployer.address,
+        //     to: channel.address,
+        //     deploy: true,
+        //     success: true,
+        // });
     });
 
     it('should deploy', async () => {
@@ -128,7 +128,7 @@ describe('TonApp', () => {
 
     it('should register jetton', async () => {
         const someWallet = await blockchain.treasury("sender");
-        const result = await jettonApp.send(deployer.getSender(), {
+        const result = await jettonApp.send(channel.getSender(), {
             value: toNano(2),
         },
             {
@@ -139,7 +139,7 @@ describe('TonApp', () => {
         );
 
         expect(result.transactions).toHaveTransaction({
-            from: deployer.address,
+            from: channel.address,
             to: jettonApp.address,
             success: true,
         });
@@ -170,7 +170,7 @@ describe('TonApp', () => {
 
         let soraUSDTTechAddress = await usdtMaster.getWalletAddress(soraUSDTWallet.address);
 
-        const result = await jettonApp.send(deployer.getSender(), {
+        const result = await jettonApp.send(channel.getSender(), {
             value: toNano(2),
         },
             {
@@ -197,7 +197,7 @@ describe('TonApp', () => {
         });
 
         expect(result.transactions).toHaveTransaction({
-            from: deployer.address,
+            from: channel.address,
             to: jettonApp.address,
             success: true,
         });
