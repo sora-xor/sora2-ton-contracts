@@ -230,7 +230,10 @@ contract JettonDefaultWallet
         let fwdFee: Int = ctx.readForwardFee();
         msgValue = ((msgValue - msg.forward_ton_amount) - fwdFee);
         // 0x7362d09c - notify the new owner of JettonToken that the transfer is complete
+
         if (msg.forward_ton_amount > 0) {
+            dump("============================================ ++++++++++++++++++++++++++++++++");
+            dump(self.owner);
             send(SendParameters{
                     to: self.owner,
                     value: msg.forward_ton_amount,
@@ -244,6 +247,7 @@ contract JettonDefaultWallet
                     }.toCell()
                 }
             );
+            dump("============================================ --------------------------------------");
         }
         // 0xd53276db -- Cashback to the original Sender
         if (msg.response_destination != null) {

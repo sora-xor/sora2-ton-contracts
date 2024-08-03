@@ -186,7 +186,7 @@ describe('TonApp', () => {
             {
                 $$type: "Mint",
                 receiver: bob.address,
-                amount: 100000000000n,
+                amount: 10000000000n,
             }
         );
 
@@ -202,7 +202,8 @@ describe('TonApp', () => {
             success: true,
         });
 
-        let soraAppWalletAddress = (await JettonApp.fromInit(channel.address)).address;
+        let jettoanAppWallet = blockchain.openContract(await JettonAppWallet.fromInit(channel.address, soraUSDTWallet.address));
+        let jettonAppWalletAddress = jettoanAppWallet.address;
 
         let bobWallet = blockchain.openContract(await JettonDefaultWallet.fromInit(usdtMaster.address, bob.address));
 
@@ -215,12 +216,12 @@ describe('TonApp', () => {
         },
             {
                 $$type: "TokenTransfer",
-                queryId: 1n,
-                amount: 500n,
-                destination: soraAppWalletAddress,
+                queryId: 0n,
+                amount: 500000n,
+                destination: jettonAppWalletAddress,
                 response_destination: bob.address,
                 custom_payload: message,
-                forward_ton_amount: 0n,
+                forward_ton_amount: 100000n,
                 forward_payload: message,
             }
         );

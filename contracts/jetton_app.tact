@@ -62,31 +62,32 @@ contract JettonAppWallet with Deployable, Ownable {
     lockedAmount: Int as uint128 = 0;
 
     init(owner: Address, master: Address){
+        dump("============================================666");
         require(sender() == owner, "Only owner can init this contract");
         self.owner = owner;
         self.master = master;
     }
 
     receive(msg: InitJettonAppWallet) {
+        dump("============================================iiiiiii");
         require(self.wallet == null, "Wallet already initialized");
         require(sender() == self.owner, "Only owner can init wallet");
         self.wallet = msg.wallet;
     }
 
     receive(msg: TokenNotification) {
-        require(self.wallet != null, "Wallet should be initialized");
-        require(sender() == self.wallet, "Only wallet can send this message");
-        dump("=================== sdasdasdasd =======================");
-        dump("=================== sdasdasdasd =======================");
-        dump("=================== sdasdasdasd =======================");
-        dump("=================== sdasdasdasd =======================");
-        let recepient: SendJetton = SendJetton.fromSlice(msg.forward_payload);
-        self.forward(self.owner, SendJettonInternal {
-            master: self.master,
-            sender: msg.from,
-            recepient: recepient.address,
-            amount: msg.amount
-        }.toCell(), false, null);
+        dump("============================================1");
+        dump("============================================2");
+        dump("============================================3");
+        // require(self.wallet != null, "Wallet should be initialized");
+        // require(sender() == self.wallet, "Only wallet can send this message");
+        // let recepient: SendJetton = SendJetton.fromSlice(msg.forward_payload);
+        // self.forward(self.owner, SendJettonInternal {
+        //     master: self.master,
+        //     sender: msg.from,
+        //     recepient: recepient.address,
+        //     amount: msg.amount
+        // }.toCell(), false, null);
     }
 
     get fun lockedAmount(): Int {
