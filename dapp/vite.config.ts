@@ -11,16 +11,16 @@ export default defineConfig({
       define: {
         global: "globalThis",
       },
-      plugins: [
-        NodeGlobalsPolyfillPlugin({
-          buffer: true,
-        }),
-      ],
+      // plugins: [
+      //   NodeGlobalsPolyfillPlugin({
+      //     buffer: true,
+      //   }),
+      // ],
     },
   },
   build: {
-    rollupOptions: {
-      plugins: [inject({ Buffer: ["Buffer", "Buffer"] })],
-    },
+    // rollupOptions: {
+    //   plugins: [inject({ Buffer: ["Buffer", "Buffer"] })],
+    // },
   },
 });
