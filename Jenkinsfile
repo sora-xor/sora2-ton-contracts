@@ -12,6 +12,7 @@ def pipeline = new org.js.AppPipeline(steps: this,
     dockerRegistryCred: 'bot-polkaswap-rw',
     preBuildCmds: ['cd dapp && yarn'],
     buildCmds: ['yarn build'],
+    testCmds: [],
     dockerImageTags: ['updated-ton-contracts': 'dev']
 )
 pipeline.runPipeline()
