@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Cell } from "@ton/core";
+import { Buffer } from "buffer";
 import { FieldProps } from "../ActionCard";
 import { BaseField } from "./Field";
 

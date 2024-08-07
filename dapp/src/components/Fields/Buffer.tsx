@@ -1,5 +1,6 @@
 import { Box, Flex, Input, Text } from "@chakra-ui/react";
 import React, { useEffect, useState } from "react";
+import { Buffer } from "buffer";
 import { FieldProps } from "../ActionCard";
 import { BaseField } from "./Field";
 

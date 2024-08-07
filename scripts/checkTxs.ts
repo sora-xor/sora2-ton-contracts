@@ -2,6 +2,7 @@ import { Address, toNano } from '@ton/core';
 import { loadOutboundMessage, TonApp } from '../wrappers/TonApp';
 import { NetworkProvider } from '@ton/blueprint';
 import { TonClient4 } from '@ton/ton';
+import { Buffer } from "buffer";
 
 export async function run(provider: NetworkProvider) {
     const api = provider.api() as TonClient4;

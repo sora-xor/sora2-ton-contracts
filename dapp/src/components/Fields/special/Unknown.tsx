@@ -2,6 +2,7 @@ import { Badge, Box, Flex, Text, Tooltip } from "@chakra-ui/react";
 import React, { useEffect } from "react";
 import { FieldProps } from "../../ActionCard";
 import { Address, Cell, beginCell, toNano } from "@ton/core";
+import { Buffer } from "buffer";
 
 export function UnknownField(props: FieldProps) {
   let defaultValue: any = null;

@@ -5,6 +5,7 @@ import { Address, beginCell, Cell, Sender, SenderArguments, SendMode, storeState
 import { ParamsWithValue } from "./components/ActionCard";
 import { Parameters } from "./utils/wrappersConfigTypes";
 import { TonConnectUI } from "@tonconnect/ui-react";
+import { Buffer } from "buffer";
 
 class TonConnectSender implements Sender {
   #provider: TonConnectUI;

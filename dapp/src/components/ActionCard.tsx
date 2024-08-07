@@ -38,6 +38,7 @@ import {
   StringField,
   UnknownField,
 } from "./Fields";
+import { Buffer } from "buffer";
 import { CHAIN } from "@tonconnect/sdk";
 import { useTonWallet } from "@tonconnect/ui-react";
 import { NestedField } from "./Fields/special/Nested";
