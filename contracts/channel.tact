@@ -88,6 +88,7 @@ contract Channel with Deployable, OwnableTransferable {
             source: sender(),
         }.toCell());
         self.forward(msg.sender, null, false, null);
+        dump("URA");
     }
     
     receive(msg: RegisterApp) {
@@ -100,6 +101,10 @@ contract Channel with Deployable, OwnableTransferable {
         self.requireOwner();
         self.outboundNonce = 0;
         self.notify(null);
+    }
+
+    receive("test") {
+        dump("test");
     }
     
     receive(msg: SendInboundMessage) {

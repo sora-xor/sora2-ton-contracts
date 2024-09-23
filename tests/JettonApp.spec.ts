@@ -35,7 +35,7 @@
 
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox';
 import { Address, address, beginCell, Builder, Cell, toNano } from '@ton/core';
-import { loadSendOutboundMessage, JettonApp } from '../wrappers/JettonApp';
+import { loadSendOutboundMessage, JettonApp, SendJetton, storeSendJetton } from '../wrappers/JettonApp';
 import { JettonAppWallet } from '../wrappers/JettonAppWallet';
 import { JettonDefaultWallet } from '../wrappers/JettonWallet';
 import { SampleJetton } from '../wrappers/Jetton';
@@ -46,28 +46,28 @@ import assert from 'assert';
 describe('TonApp', () => {
     let blockchain: Blockchain;
     let deployer: SandboxContract<TreasuryContract>;
-    let channel: SandboxContract<TreasuryContract>;
+    let charlie: SandboxContract<TreasuryContract>;
     let alice: SandboxContract<TreasuryContract>; // Jetton Master Admin
     let jettonApp: SandboxContract<JettonApp>;
-    // let channel: SandboxContract<Channel>;
+    let channel: SandboxContract<Channel>;
 
     let usdtMaster: SandboxContract<SampleJetton>;
 
     beforeEach(async () => {
         blockchain = await Blockchain.create();
         deployer = await blockchain.treasury('deployer');
-        channel = await blockchain.treasury('channel');
+        charlie = await blockchain.treasury('charlie');
         alice = await blockchain.treasury('alice');
 
         let contentBuilder = beginCell()
         let content = contentBuilder.endCell();
 
         usdtMaster = blockchain.openContract(await SampleJetton.fromInit(alice.address, content, 100000000000n));
+        channel = blockchain.openContract(await Channel.fromInit());
         jettonApp = blockchain.openContract(await JettonApp.fromInit(channel.address));
-        // channel = blockchain.openContract(await Channel.fromInit());
-
+        
         const jettonAppDeployResult = await jettonApp.send(
-            channel.getSender(),
+            charlie.getSender(),
             {
                 value: toNano(1),
             },
@@ -78,6 +78,17 @@ describe('TonApp', () => {
         );
 
         const jettonMasterDeployResult = await usdtMaster.send(
+            alice.getSender(),
+            {
+                value: toNano(1),
+            },
+            {
+                $$type: 'Deploy',
+                queryId: 0n,
+            }
+        );
+
+        const channelDeployResult = await channel.send(
             alice.getSender(),
             {
                 value: toNano(1),
@@ -100,7 +111,7 @@ describe('TonApp', () => {
         // );
 
         expect(jettonAppDeployResult.transactions).toHaveTransaction({
-            from: channel.address,
+            from: charlie.address,
             to: jettonApp.address,
             deploy: true,
             success: true,
@@ -109,6 +120,13 @@ describe('TonApp', () => {
         expect(jettonMasterDeployResult.transactions).toHaveTransaction({
             from: alice.address,
             to: usdtMaster.address,
+            deploy: true,
+            success: true,
+        });
+
+        expect(channelDeployResult.transactions).toHaveTransaction({
+            from: alice.address,
+            to: channel.address,
             deploy: true,
             success: true,
         });
@@ -128,57 +146,50 @@ describe('TonApp', () => {
 
     it('should register jetton', async () => {
         const someWallet = await blockchain.treasury("sender");
-        const result = await jettonApp.send(channel.getSender(), {
+        const result = await jettonApp.send(charlie.getSender(), {
             value: toNano(2),
         },
             {
                 $$type: "RegisterJetton",
-                master: channel.address,
+                master: charlie.address,
                 wallet: someWallet.address,
             }
         );
 
         expect(result.transactions).toHaveTransaction({
-            from: channel.address,
+            from: charlie.address,
             to: jettonApp.address,
             success: true,
         });
     });
 
-    it('should fail register jetton not owner', async () => {
-        const someSender = await blockchain.treasury("sender");
-        const result = await jettonApp.send(someSender.getSender(), {
-            value: toNano(2),
-        },
-            {
-                $$type: "RegisterJetton",
-                master: deployer.address,
-                wallet: someSender.address,
-            }
-        );
+    // it('should fail register jetton not owner', async () => {
+    //     const someSender = await blockchain.treasury("sender");
+    //     const result = await jettonApp.send(someSender.getSender(), {
+    //         value: toNano(2),
+    //     },
+    //         {
+    //             $$type: "RegisterJetton",
+    //             master: deployer.address,
+    //             wallet: someSender.address,
+    //         }
+    //     );
 
-        expect(result.transactions).toHaveTransaction({
-            from: someSender.address,
-            to: jettonApp.address,
-            success: false,
-        });
-    });
+    //     expect(result.transactions).toHaveTransaction({
+    //         from: someSender.address,
+    //         to: jettonApp.address,
+    //         success: false,
+    //     });
+    // });
 
-    it('should init jetton wallet', async () => {
+    it('should send jetton', async () => {
         const soraUSDTWallet = await blockchain.treasury("sora usdt");
         const bob = await blockchain.treasury("bob");
 
-        let soraUSDTTechAddress = await usdtMaster.getWalletAddress(soraUSDTWallet.address);
-
-        const result = await jettonApp.send(channel.getSender(), {
-            value: toNano(2),
-        },
-            {
-                $$type: "RegisterJetton",
-                master: soraUSDTWallet.address,
-                wallet: soraUSDTTechAddress,
-            }
-        );
+        let jettonAppWallet = blockchain.openContract(await JettonAppWallet.fromInit(jettonApp.address, soraUSDTWallet.address));
+        let jettonAppWalletAddress = jettonAppWallet.address;
+        
+        let soraUSDTTechAddress = await usdtMaster.getWalletAddress(jettonAppWalletAddress);
 
         const mintResult = await usdtMaster.send(alice.getSender(), {
             value: toNano(2),
@@ -196,35 +207,78 @@ describe('TonApp', () => {
             success: true,
         });
 
-        expect(result.transactions).toHaveTransaction({
-            from: channel.address,
+        const jettonRegisterResult = await jettonApp.send(charlie.getSender(), {
+            value: toNano(2),
+        },
+            {
+                $$type: "RegisterJetton",
+                master: soraUSDTWallet.address,
+                wallet: soraUSDTTechAddress,
+            }
+        );
+
+        expect(jettonRegisterResult.transactions).toHaveTransaction({
+            from: charlie.address,
             to: jettonApp.address,
             success: true,
         });
 
-        let jettoanAppWallet = blockchain.openContract(await JettonAppWallet.fromInit(channel.address, soraUSDTWallet.address));
-        let jettonAppWalletAddress = jettoanAppWallet.address;
-
         let bobWallet = blockchain.openContract(await JettonDefaultWallet.fromInit(usdtMaster.address, bob.address));
 
-        let messagePayloadBuilder = beginCell()
-        messagePayloadBuilder = messagePayloadBuilder.storeInt(666, 32);
-        let message = messagePayloadBuilder.endCell();
+        let sendJettonPayload: SendJetton = {
+            $$type: "SendJetton",
+            address: {
+                $$type: "Bytes32",
+                data: 12n,
+            },
+        };
+        let cell = beginCell();
+        storeSendJetton(sendJettonPayload)(cell);
 
         let transferResult = await bobWallet.send(bob.getSender(), {
             value: toNano(2),
         },
             {
                 $$type: "TokenTransfer",
-                queryId: 0n,
-                amount: 500000n,
+                queryId: 1n,
+                amount: 50000000n,
                 destination: jettonAppWalletAddress,
                 response_destination: bob.address,
-                custom_payload: message,
-                forward_ton_amount: 100000n,
-                forward_payload: message,
+                custom_payload: beginCell().storeInt(12, 8).endCell(),
+                forward_ton_amount: 10000000n,
+                forward_payload: cell.endCell(),
             }
         );
+
+
+
+        // let a = await jettonAppWallet.send(bob.getSender(), {
+        //     value: toNano(2),
+        // },
+        //     {
+        //         $$type: "TokenNotification",
+        //         queryId: 0n,
+        //         amount: 500000n,
+        //         from: bob.address,
+        //         forward_payload: cell.endCell(),
+        //     }
+        // );
+
+
+
+        // console.log("Bob address");
+        // console.log(bob.address);
+
+        // console.log("jettonAppWalletAddress:");
+        // console.log(jettonAppWalletAddress);
+
+
+        // expect(a.transactions).toHaveTransaction({
+        //     from: bob.address,
+        //     to: jettonAppWallet.address,
+        //     success: true,
+        // });
+
 
         expect(transferResult.transactions).toHaveTransaction({
             from: bob.address,

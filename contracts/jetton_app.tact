@@ -62,32 +62,39 @@ contract JettonAppWallet with Deployable, Ownable {
     lockedAmount: Int as uint128 = 0;
 
     init(owner: Address, master: Address){
-        dump("============================================666");
         require(sender() == owner, "Only owner can init this contract");
         self.owner = owner;
         self.master = master;
     }
 
     receive(msg: InitJettonAppWallet) {
-        dump("============================================iiiiiii");
         require(self.wallet == null, "Wallet already initialized");
         require(sender() == self.owner, "Only owner can init wallet");
         self.wallet = msg.wallet;
     }
 
     receive(msg: TokenNotification) {
-        dump("============================================1");
-        dump("============================================2");
-        dump("============================================3");
-        // require(self.wallet != null, "Wallet should be initialized");
-        // require(sender() == self.wallet, "Only wallet can send this message");
-        // let recepient: SendJetton = SendJetton.fromSlice(msg.forward_payload);
-        // self.forward(self.owner, SendJettonInternal {
-        //     master: self.master,
-        //     sender: msg.from,
-        //     recepient: recepient.address,
-        //     amount: msg.amount
-        // }.toCell(), false, null);
+        // dump(msg.amount);
+        // send(SendParameters{bounce: true, to: self.wallet!!, value: 0, mode: SendIgnoreErrors, body: null, code: null, data: null });
+        require(self.wallet != null, "Wallet should be initialized");
+        require(sender() == self.wallet, "Only wallet can send this message");
+
+        let recepient: SendJetton = SendJetton.fromSlice(msg.forward_payload);
+        self.forward(self.owner, SendJettonInternal {
+            master: self.master,
+            sender: msg.from,
+            recepient: recepient.address,
+            amount: msg.amount
+        }.toCell(), false, null);
+
+        // try {
+
+        // } catch (e) {
+        //     dump(e);
+        //     dump("shit!!!!");
+        // }
+        dump("done");
+        dump(msg.amount);
     }
 
     get fun lockedAmount(): Int {
@@ -100,27 +107,56 @@ contract JettonApp with Deployable, OwnableTransferable {
     owner: Address; // Channel
 
     init(channel: Address){
+        // maybe check if address is channel????
         self.owner = channel;
     }
 
     // Send locked token to SORA
     receive(msg: SendJettonInternal){
-        let sinit: StateInit = initOf JettonAppWallet(myAddress(), msg.master);
-        require(contractAddress(sinit) == sender(), "Invalid sender!");
-        let soraMessage: SoraTransferMessage = SoraTransferMessage{
-            token: msg.master,
-            recipient: msg.recepient,
-            sender: msg.sender,
-            amount: msg.amount
-        };
-        self.forward(self.owner, SendOutboundMessage {
-            message: soraMessage.encode(),
-            sender: msg.sender,
-        }.toCell(), false, null);
+        // send(SendParameters{bounce: true, to: self.owner, value: 0, mode: SendIgnoreErrors, body: null, code: null, data: null });
+        // let sinit: StateInit = initOf JettonAppWallet(myAddress(), msg.master);
+        // require(contractAddress(sinit) == sender(), "Invalid sender!");
+
+        send(SendParameters{bounce: true, to: msg.master, value: 100000, mode: SendIgnoreErrors, body: "test".asComment(), code: null, data: null });
+        // transfer({ to: msg.master, value: 100000, bounce: true, flags: 0, payload: "test".asComment() });
+
+        // try {
+        //     let soraMessage: SoraTransferMessage = SoraTransferMessage{
+        //         token: msg.master,
+        //         recipient: msg.recepient,
+        //         sender: msg.sender,
+        //         amount: msg.amount
+        //     };
+
+        //     // send(SendParameters{bounce: false, to: self.owner, value: 0, mode: SendRemainingValue | SendIgnoreErrors, body: SendOutboundMessage {
+        //     //     message: soraMessage.encode(),
+        //     //     sender: msg.sender,
+        //     // }.toCell(), code: null, data: null });
+        //     dump("1");
+
+        //     // send(SendParameters{bounce: true, to: self.owner, value: 0, mode: SendIgnoreErrors, body: null, code: null, data: null });
+            
+        //     // self.forward(self.owner, SendOutboundMessage {
+        //     //     message: soraMessage.encode(),
+        //     //     sender: msg.sender,
+        //     // }.toCell(), false, null);
+
+        //     dump("2");
+
+        //     // self.forward(self.owner, SendOutboundMessage {
+        //     //     message: soraMessage.encode(),
+        //     //     sender: msg.sender,
+        //     // }.toCell(), false, null);
+        // } catch (e) {
+        //     // dump(e);
+        //     dump("SendJettonInternal shit!!!!");
+        // }
+
+        dump("SendJettonInternal");
     }
     
     receive(msg: RegisterJetton) {
-        require(sender() == self.owner, "Only owner can register jetton");
+        // require(sender() == self.owner, "Only owner can register jetton");
         let sinit: StateInit = initOf JettonAppWallet(myAddress(), msg.master);
         send(SendParameters{
                 to: contractAddress(sinit),

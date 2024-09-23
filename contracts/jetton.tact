@@ -221,6 +221,10 @@ contract JettonDefaultWallet
             let sinit: StateInit = initOf JettonDefaultWallet(self.master, msg.from);
             require(contractAddress(sinit) == ctx.sender, "Invalid sender!");
         }
+
+        dump("============================================ Sender:");
+        dump(ctx.sender);
+        dump("============================================ ++++++++++");
         // Update balance
         self.balance = (self.balance + msg.amount);
         require(self.balance >= 0, "Invalid balance");
@@ -232,8 +236,10 @@ contract JettonDefaultWallet
         // 0x7362d09c - notify the new owner of JettonToken that the transfer is complete
 
         if (msg.forward_ton_amount > 0) {
-            dump("============================================ ++++++++++++++++++++++++++++++++");
+            dump("============================================ Sending notification to:");
             dump(self.owner);
+            dump(msg.forward_ton_amount);
+
             send(SendParameters{
                     to: self.owner,
                     value: msg.forward_ton_amount,
@@ -251,6 +257,8 @@ contract JettonDefaultWallet
         }
         // 0xd53276db -- Cashback to the original Sender
         if (msg.response_destination != null) {
+            dump("============================================ Sending excess to:");
+            dump(msg.response_destination);
             send(SendParameters{
                     to: msg.response_destination,
                     value: msgValue,
@@ -259,6 +267,7 @@ contract JettonDefaultWallet
                     mode: SendIgnoreErrors
                 }
             );
+            dump("============================================ --------------------------------------");
         }
     }
 
