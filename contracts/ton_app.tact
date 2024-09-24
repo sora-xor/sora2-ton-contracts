@@ -36,7 +36,8 @@
 import "@stdlib/deploy";
 import "@stdlib/ownable";
 import "./bridge_call.tact";
-import "./channel.tact";
+import "./ichannel.tact";
+import "./stoppable.tact";
 
 message SendTon {
     soraAddress: Bytes32;
@@ -49,7 +50,8 @@ message Migrate {
 
 message MigrateInternal {}
 
-contract TonApp with Deployable, OwnableTransferable {
+contract TonApp with Deployable, OwnableTransferable, Stoppable {
+    const minFee: Int = ton("0.1");
     owner: Address; // Channel
     lockedAmount: Int as uint128 = 0;
     stopped: Bool = false;
@@ -58,14 +60,10 @@ contract TonApp with Deployable, OwnableTransferable {
         self.owner = channel;
     }
 
-    fun requireOperational() {
-        require(self.stopped == false, "App is stopped");
-    }
-
     // lock TON to send it to SORA
     receive(msg: SendTon){
         self.requireOperational();
-        require(context().value > msg.amount, "Amount should be greater than value");
+        require(context().value > msg.amount + self.minFee, "Amount should be greater than value");
         let sender: Address = sender();
         let soraMessage: SoraTonTransferMessage = SoraTonTransferMessage{
             recipient: msg.soraAddress,
@@ -95,7 +93,7 @@ contract TonApp with Deployable, OwnableTransferable {
     receive(msg: Migrate) {
         self.requireOwner();
         self.requireOperational();
-        self.stopped = true;
+        self.stop();
         send(SendParameters{
             to: msg.receiver,
             value: 0,

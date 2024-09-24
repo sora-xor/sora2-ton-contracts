@@ -66,7 +66,7 @@ export class ChannelUi implements Contract {
     }
 
     async getApps(provider: ContractProvider): Promise<Address[]> {
-        return (await this.app.getApps(provider)).keys();
+        return (await this.app.getApps(provider)).apps.keys();
     }
 
     async getOutboundNonce(provider: ContractProvider): Promise<bigint> {

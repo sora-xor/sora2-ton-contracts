@@ -28,20 +28,14 @@
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-struct Bytes32 {
-    data: Int as uint256;
+import "./bridge_call.tact";
+
+message SendOutboundMessage {
+    message: SoraEncodedCall;
+    sender: Address;
 }
 
-/// Creates a new `Bytes32` instance filled with zeros.
-fun newBytes32(): Bytes32 {
-    return Bytes32{data: 0};
-}
-
-extends fun storeBytes32(self: Builder, bytes: Bytes32): Builder {
-    return self.storeUint(bytes.data, 256);
-}
-
-extends fun storeAlignedAddress(self: Builder, address: Address): Builder {
-    self = self.storeUint(0, 5);
-    return self.storeAddress(address);
+message SendInboundMessage {
+    target: Address;
+    message: Cell;
 }
