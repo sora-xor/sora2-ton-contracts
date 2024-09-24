@@ -1,14 +1,109 @@
-import { Address, Cell, Contract, ContractABI, ContractProvider, Sender, toNano } from '@ton/core';
+import { Address, Cell, Contract, ContractABI, ContractProvider, Dictionary, Sender, Slice, toNano } from '@ton/core';
 import * as wrapper from './Channel';
 
-export class ChannelUi implements Contract {
+export class Message {
+    readonly data: Cell;
+    readonly fee: bigint;
+    readonly target: Address;
 
-    static async init(owner: Address) {
-        return await wrapper.Channel.init(owner);
+    constructor(target: Address, data: Cell, fee: bigint) {
+        this.target = target;
+        this.data = data;
+        this.fee = fee;
     }
 
-    static async fromInit(owner: Address) {
-        return new ChannelUi(await wrapper.Channel.fromInit(owner));
+    toInternal(): wrapper.InboundMessage {
+        return {
+            $$type: "InboundMessage",
+            data: this.data,
+            fee: this.fee,
+            target: this.target
+        };
+    }
+}
+
+export class Commitment {
+    readonly totalFee: bigint;
+    readonly nonce: bigint;
+    readonly messages: Message[];
+
+    constructor(total_fee: bigint, nonce: bigint, messages: Message[]) {
+        this.totalFee = total_fee;
+        this.nonce = nonce;
+        this.messages = messages;
+    }
+
+    toInternal(): wrapper.Commitment {
+        var messages = Dictionary.empty();
+        var count = 0;
+        for (const message of this.messages) {
+            messages.set(count, message.toInternal());
+            count += 1;
+
+        }
+        return {
+            $$type: "Commitment",
+            total_fee: this.totalFee,
+            nonce: this.nonce,
+            messages: messages as Dictionary<number, wrapper.InboundMessage>,
+        };
+    }
+}
+
+export class Signature {
+    readonly signature: Slice;
+    readonly publicKey: bigint;
+
+    constructor(signature: Slice, publicKey: bigint) {
+        this.signature = signature;
+        this.publicKey = publicKey;
+    }
+
+    toInternal(): wrapper.Signature {
+        return {
+            $$type: "Signature",
+            signature: this.signature,
+            public_key: this.publicKey
+        }
+    }
+}
+
+export class Proof {
+    readonly signatures: Signature[];
+
+    constructor(signatures: Signature[]) {
+        this.signatures = signatures;
+    }
+
+    toInternal(): wrapper.CommitmentProof {
+        var count = 0;
+        var signatures = Dictionary.empty();
+        for (const signature of this.signatures) {
+            signatures.set(count, signature.toInternal());
+            count += 1;
+        }
+        return {
+            $$type: "CommitmentProof",
+            sigs: signatures as Dictionary<number, wrapper.Signature>
+        }
+    }
+}
+
+export class ChannelUi implements Contract {
+    static async init(owner: Address, peers: bigint[]) {
+        var peers_dict = Dictionary.empty();
+        for (const peer of peers) {
+            peers_dict.set(peer, true);
+        }
+        return await wrapper.Channel.init(owner, peers_dict as Dictionary<bigint, boolean>);
+    }
+
+    static async fromInit(owner: Address, peers: bigint[]) {
+        var peers_dict = Dictionary.empty();
+        for (const peer of peers) {
+            peers_dict.set(peer, true);
+        }
+        return new ChannelUi(await wrapper.Channel.fromInit(owner, peers_dict as Dictionary<bigint, boolean>));
     }
 
     static fromAddress(address: Address) {
@@ -38,11 +133,11 @@ export class ChannelUi implements Contract {
         });
     }
 
-    async sendInboundMessage(provider: ContractProvider, via: Sender, target: Address, message: Cell, value: bigint = toNano("0.1")) {
+    async sendInboundMessages(provider: ContractProvider, via: Sender, commitment: Commitment, proof: Proof, value: bigint = toNano("0.1")) {
         this.app.send(provider, via, { value }, {
-            $$type: "SendInboundMessage",
-            target,
-            message
+            $$type: "SendInboundMessages",
+            commitment: commitment.toInternal(),
+            proof: proof.toInternal(),
         });
     }
 

@@ -34,7 +34,7 @@
 //! capabilities that are specific to this project's runtime configuration.
 
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox';
-import { Address, address, beginCell, Builder, toNano } from '@ton/core';
+import { Address, address, beginCell, Builder, Dictionary, toNano } from '@ton/core';
 import '@ton/test-utils';
 import assert from 'assert';
 import { Channel, loadOutboundMessage, loadSendOutboundMessage } from '../wrappers/Channel';
@@ -51,7 +51,7 @@ describe('Channel', () => {
         deployer = await blockchain.treasury('deployer');
         app = await blockchain.treasury('app');
 
-        channel = blockchain.openContract(await Channel.fromInit(deployer.address));
+        channel = blockchain.openContract(await Channel.fromInit(deployer.address, Dictionary.empty()));
 
 
         const deployResult = await channel.send(
