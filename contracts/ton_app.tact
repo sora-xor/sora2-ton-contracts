@@ -48,35 +48,38 @@ message Migrate {
     receiver: Address;
 }
 
-message MigrateInternal {}
+message MigrateInternal {
+    amount: Int;
+}
 
 contract TonApp with Deployable, OwnableTransferable, Stoppable {
-    const minFee: Int = ton("0.1");
+    const minReserve: Int = ton("0.01");
+    const minFee: Int = ton("0.05");
     owner: Address; // Channel
     lockedAmount: Int as uint128 = 0;
     stopped: Bool = false;
 
-    init(channel: Address){
+    init(channel: Address, seqno: Int){
         self.owner = channel;
     }
 
     // lock TON to send it to SORA
     receive(msg: SendTon){
         self.requireOperational();
-        require(context().value > msg.amount + self.minFee, "Amount should be greater than value");
+        require(context().value > self.minFee + msg.amount, "Amount should be greater than value");
         let sender: Address = sender();
         let soraMessage: SoraTonTransferMessage = SoraTonTransferMessage{
             recipient: msg.soraAddress,
             sender: sender,
             amount: msg.amount
         };
-        nativeReserve(msg.amount, 4);
         self.lockedAmount += msg.amount;
+        nativeReserve(self.minReserve + self.lockedAmount, 0);
         send(
             SendParameters {
                 to: self.owner,
                 value: 0,
-                mode: SendRemainingBalance | SendBounceIfActionFail,
+                mode: SendRemainingBalance | SendIgnoreErrors,
                 body: SendOutboundMessage {
                     message: soraMessage.encode(),
                     sender: sender()
@@ -87,7 +90,11 @@ contract TonApp with Deployable, OwnableTransferable, Stoppable {
     
     receive(msg: MigrateInternal) {
         self.requireOperational();
-        self.lockedAmount += context().value;
+        self.lockedAmount += msg.amount;
+    }
+    
+    bounced(msg: bounced<MigrateInternal>) {
+        self.resume();
     }
     
     receive(msg: Migrate) {
@@ -97,8 +104,10 @@ contract TonApp with Deployable, OwnableTransferable, Stoppable {
         send(SendParameters{
             to: msg.receiver,
             value: 0,
-            mode: SendRemainingBalance | SendIgnoreErrors | SendDestroyIfZero,
-            body: MigrateInternal {}.toCell()
+            mode: SendRemainingBalance,
+            body: MigrateInternal {
+                amount: self.lockedAmount
+            }.toCell()
         });
     }
 

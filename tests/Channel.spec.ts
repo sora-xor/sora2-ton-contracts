@@ -33,17 +33,18 @@
 //! used by Substrate nodes. This file extends those RPC definitions with
 //! capabilities that are specific to this project's runtime configuration.
 
-import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox';
+import { Blockchain, SandboxContract, TreasuryContract, EventMessageSent, Treasury } from '@ton/sandbox';
 import { Address, address, beginCell, Builder, toNano } from '@ton/core';
 import '@ton/test-utils';
 import assert from 'assert';
-import { Channel, loadOutboundMessage, loadSendOutboundMessage } from '../wrappers/Channel';
+import { Channel, loadOutboundMessage, loadSendOutboundMessage, storeApps, storeOutboundMessage, storeSendOutboundMessage } from '../wrappers/Channel';
+import { TestChannel } from './TestChannel';
 
 describe('Channel', () => {
     let blockchain: Blockchain;
     let deployer: SandboxContract<TreasuryContract>;
     let app: SandboxContract<TreasuryContract>;
-    let channel: SandboxContract<Channel>;
+    let channel: TestChannel;
 
     beforeEach(async () => {
         blockchain = await Blockchain.create();
@@ -51,45 +52,8 @@ describe('Channel', () => {
         deployer = await blockchain.treasury('deployer');
         app = await blockchain.treasury('app');
 
-        channel = blockchain.openContract(await Channel.fromInit(deployer.address));
-
-
-        const deployResult = await channel.send(
-            deployer.getSender(),
-            {
-                value: toNano(1),
-            },
-            {
-                $$type: 'Deploy',
-                queryId: 0n,
-            }
-        );
-
-        expect(deployResult.transactions).toHaveTransaction({
-            from: deployer.address,
-            to: channel.address,
-            deploy: true,
-            success: true,
-        });
-
-        const registerResult = await channel.send(
-            deployer.getSender(),
-            {
-                value: toNano(1),
-            },
-            {
-                $$type: 'RegisterApp',
-                app: app.address
-            }
-        );
-
-        expect(deployResult.transactions).toHaveTransaction({
-            from: deployer.address,
-            to: channel.address,
-            success: true,
-        });
-
-        assert(await channel.getIsApp(app.address));
+        channel = await TestChannel.fromInit(blockchain, deployer.address, 0n);
+        await channel.deploy(deployer);
     });
 
     it('should deploy', async () => {
@@ -97,13 +61,50 @@ describe('Channel', () => {
         // blockchain and channel are ready to use
     });
 
-    it('should transfer', async () => {
+    it('should register app', async () => {
+        await channel.registerApp(deployer, app.address);
+    });
+
+    it('should remove app', async () => {
+        await channel.registerApp(deployer, app.address);
+        await channel.removeApp(deployer, app.address);
+    });
+
+    it('should not remove non existing app', async () => {
+        await channel.removeApp(deployer, app.address, false, false);
+    });
+
+    it('should not register app if not owner', async () => {
         const sender = await blockchain.treasury("sender");
-        console.log(deployer.address, await deployer.getBalance());
-        console.log(sender.address, await sender.getBalance());
-        const result = await channel.send(app.getSender(), {
-            value: toNano(1),
-        },
+        await channel.registerApp(sender, app.address, false, false);
+    });
+
+    it('should not remove app if not owner', async () => {
+        await channel.registerApp(deployer, app.address);
+        const sender = await blockchain.treasury("sender");
+        await channel.removeApp(sender, app.address, false, true);
+    });
+
+    it('should not register the same app', async () => {
+        await channel.registerApp(deployer, app.address);
+        await channel.registerApp(deployer, app.address, false, true);
+    });
+
+    it("should not register more than 20 apps", async () => {
+        for (let i = 0; i < 20; i++) {
+            const app = await blockchain.treasury(`app-${i}`);
+            await channel.registerApp(deployer, app.address);
+        }
+        const app = await blockchain.treasury("last-app");
+        await channel.registerApp(deployer, app.address, false, false);
+    });
+
+    it('should submit message', async () => {
+        await channel.registerApp(deployer, app.address);
+        const sender = await blockchain.treasury("sender");
+        const result = await channel.send(
+            app.getSender(),
+            { value: toNano(1), },
             {
                 $$type: "SendOutboundMessage",
                 sender: sender.address,
@@ -113,18 +114,186 @@ describe('Channel', () => {
                 }
             }
         );
-        const transfer = result.events[0];
-        assert(transfer.type == "message_sent");
-        assert(transfer.bounced == false);
-        assert(transfer.from.toString() == app.address.toString());
-        assert(transfer.to.toString() == channel.address.toString());
-        const tonTransfer = loadSendOutboundMessage(transfer.body.asSlice());
-        assert(tonTransfer.sender.toString() == sender.address.toString());
-        assert(tonTransfer.message.data.bits.toString() == "0000000C");
+        expect(result.transactions).toHaveTransaction({
+            from: app.address,
+            to: channel.address,
+            inMessageBounced: false,
+            success: true,
+            body: beginCell().store(storeSendOutboundMessage({
+                $$type: "SendOutboundMessage",
+                sender: sender.address,
+                message: {
+                    $$type: "SoraEncodedCall",
+                    data: beginCell().storeInt(12, 32).endCell()
+                }
+            })).asCell()
+        });
+        expect(result.transactions).toHaveTransaction({
+            from: channel.address,
+            to: sender.address,
+            success: true,
+        });
         const outboundEvent = result.externals[0];
-        const outboundMessage = loadOutboundMessage(outboundEvent.body.asSlice());
-        assert(outboundMessage.nonce == BigInt(1));
-        assert(outboundMessage.message.data.bits.toString() == "0000000C");
-        assert(outboundMessage.source.toString() == app.address.toString());
+        expect(outboundEvent.body).toEqualCell(beginCell().store(storeOutboundMessage({
+            $$type: "OutboundMessage",
+            message: {
+                $$type: "SoraEncodedCall",
+                data: beginCell().storeInt(12, 32).endCell()
+            },
+            nonce: 1n,
+            source: app.address,
+        })).asCell())
+        expect(Number(await channel.getOutboundNonce())).toBe(1);
+    });
+
+    it('should not submit message from wrong app', async () => {
+        const sender = await blockchain.treasury("sender");
+        const result = await channel.send(
+            app.getSender(),
+            { value: toNano(1), },
+            {
+                $$type: "SendOutboundMessage",
+                sender: sender.address,
+                message: {
+                    $$type: "SoraEncodedCall",
+                    data: beginCell().storeInt(12, 32).endCell()
+                }
+            }
+        );
+        expect(result.transactions).toHaveTransaction({
+            from: app.address,
+            to: channel.address,
+            inMessageBounced: false,
+            success: true,
+            body: beginCell().store(storeSendOutboundMessage({
+                $$type: "SendOutboundMessage",
+                sender: sender.address,
+                message: {
+                    $$type: "SoraEncodedCall",
+                    data: beginCell().storeInt(12, 32).endCell()
+                }
+            })).asCell()
+        });
+        expect(result.transactions).toHaveTransaction({
+            from: channel.address,
+            to: sender.address,
+            success: true,
+        });
+        expect(result.externals).toHaveLength(0);
+        expect(Number(await channel.getOutboundNonce())).toBe(0);
+    });
+
+    it('should migrate', async () => {
+        await channel.registerApp(deployer, app.address);
+        const anotherChannel = await TestChannel.fromInit(blockchain, channel.address, 0n);
+        await anotherChannel.deploy(deployer);
+        const result = await channel.send(
+            deployer.getSender(),
+            { value: toNano(1), },
+            { $$type: "Migrate", receiver: anotherChannel.address }
+        );
+        expect(result.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: channel.address,
+            success: true,
+        });
+        expect(result.transactions).toHaveTransaction({
+            from: channel.address,
+            to: anotherChannel.address,
+            success: true,
+        });
+        expect(await channel.getStopped()).toBeTruthy();
+        expect(beginCell().store(storeApps(await channel.getApps())).asCell())
+            .toEqualCell(beginCell().store(storeApps(await anotherChannel.getApps())).asCell());
+    });
+
+    it('should not migrate from wrong account', async () => {
+        await channel.registerApp(deployer, app.address);
+        const sender = await blockchain.treasury("sender");
+        const result = await channel.send(
+            sender.getSender(),
+            { value: toNano(1), },
+            { $$type: "Migrate", receiver: channel.address }
+        );
+        expect(result.transactions).toHaveTransaction({
+            from: sender.address,
+            to: channel.address,
+            success: false,
+        });
+        expect(await channel.getStopped()).toBeFalsy();
+    });
+
+    it('should not accept migration from wrong account', async () => {
+        await channel.registerApp(deployer, app.address);
+        const anotherChannel = blockchain.openContract(await Channel.fromInit(deployer.address, 1n));
+        const deployResult = await anotherChannel.send(
+            deployer.getSender(),
+            { value: toNano(1) },
+            { $$type: "Deploy", queryId: 0n }
+        );
+        expect(deployResult.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: anotherChannel.address,
+            deploy: true,
+            success: true,
+        });
+        const result = await channel.send(
+            deployer.getSender(),
+            { value: toNano(1), },
+            { $$type: "Migrate", receiver: anotherChannel.address }
+        );
+        expect(result.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: channel.address,
+            success: true,
+        });
+        expect(result.transactions).toHaveTransaction({
+            from: channel.address,
+            to: anotherChannel.address,
+            success: false,
+        });
+        expect(result.transactions).toHaveTransaction({
+            from: anotherChannel.address,
+            to: channel.address,
+            success: true,
+            inMessageBounced: true
+        });
+        expect(await channel.getStopped()).toBeFalsy();
+    });
+
+    it('should send message to app', async () => {
+        await channel.registerApp(deployer, app.address);
+
+        const result = await channel.channel.send(
+            deployer.getSender(),
+            { value: toNano(1) },
+            {
+                $$type: "SendInboundMessage",
+                message: beginCell().storeInt(12, 32).endCell(),
+                target: app.address
+            });
+
+        expect(result.transactions).toHaveTransaction({
+            from: channel.address,
+            to: app.address,
+            body: beginCell().storeInt(12, 32).endCell()
+        });
+    });
+
+    it('should not send message to wrong app', async () => {
+        const result = await channel.channel.send(
+            deployer.getSender(),
+            { value: toNano(1) },
+            {
+                $$type: "SendInboundMessage",
+                message: beginCell().storeInt(12, 32).endCell(),
+                target: app.address
+            });
+
+        expect(result.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: channel.address,
+            success: false
+        });
     });
 });

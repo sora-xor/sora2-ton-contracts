@@ -34,20 +34,24 @@ struct Apps {
 }
 const MaxAppsSize: Int = 20;
 
-extends fun add(self: Apps, app: Address) {
+extends mutates fun add(self: Apps, app: Address) {
     require((self.length + 1) <= MaxAppsSize, "Apps set is full");
     require(self.apps.get(app) != true, "App already registered");
     self.apps.set(app, true);
     self.length += 1;
 }
 
-extends fun remove(self: Apps, app: Address) {
+extends mutates fun remove(self: Apps, app: Address) {
     require(self.apps.del(app) == true, "App not found");
     self.length -= 1;
 }
 
 extends fun has(self: Apps, app: Address): Bool {
     return self.apps.get(app) == true;
+}
+
+extends fun len(self: Apps): Int {
+    return self.length;
 }
 
 fun emptyApps(): Apps {

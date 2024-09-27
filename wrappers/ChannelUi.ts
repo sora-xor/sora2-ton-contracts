@@ -3,12 +3,12 @@ import * as wrapper from './Channel';
 
 export class ChannelUi implements Contract {
 
-    static async init(owner: Address) {
-        return await wrapper.Channel.init(owner);
+    static async init(owner: Address, seqno: bigint) {
+        return await wrapper.Channel.init(owner, seqno);
     }
 
-    static async fromInit(owner: Address) {
-        return new ChannelUi(await wrapper.Channel.fromInit(owner));
+    static async fromInit(owner: Address, seqno: bigint) {
+        return new ChannelUi(await wrapper.Channel.fromInit(owner, seqno));
     }
 
     static fromAddress(address: Address) {

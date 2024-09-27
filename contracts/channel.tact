@@ -68,8 +68,7 @@ contract Channel with Deployable, OwnableTransferable, Stoppable {
     apps: Apps;
     stopped: Bool = false;
 
-    init(owner: Address){
-        require(sender() == owner, "Only owner can initialize this contract");
+    init(owner: Address, seqno: Int){
         self.owner = owner;
         self.apps = emptyApps();
     }
@@ -91,13 +90,16 @@ contract Channel with Deployable, OwnableTransferable, Stoppable {
     }
     
     receive(msg: SendOutboundMessage) {
-        self.requireApp();
-        self.outboundNonce += 1;
-        emit(OutboundMessage {
-            nonce: self.outboundNonce,
-            message: msg.message,
-            source: sender(),
-        }.toCell());
+        /// State inside of `try` will be rolled back if something went wrong
+        try {
+            self.requireApp();
+            self.outboundNonce += 1;
+            emit(OutboundMessage {
+                nonce: self.outboundNonce,
+                message: msg.message,
+                source: sender(),
+            }.toCell());
+        }
         self.forward(msg.sender, null, false, null);
     }
     
@@ -126,6 +128,11 @@ contract Channel with Deployable, OwnableTransferable, Stoppable {
         self.forward(msg.target, msg.message, true, null);
     }
     
+    /// Migration failed, revert
+    bounced(msg: bounced<MigrateInternal>) {
+        self.resume();
+    }
+    
     receive(msg: Migrate) {
         self.requireOwner();
         self.requireOperational();
@@ -133,7 +140,7 @@ contract Channel with Deployable, OwnableTransferable, Stoppable {
         send(SendParameters{
             to: msg.receiver,
             value: 0,
-            mode: SendRemainingBalance | SendIgnoreErrors | SendDestroyIfZero,
+            mode: SendRemainingBalance,
             body: MigrateInternal {
                 outboundNonce: self.outboundNonce,
                 inboundNonce: 0,
@@ -143,6 +150,7 @@ contract Channel with Deployable, OwnableTransferable, Stoppable {
     }
     
     receive(msg: MigrateInternal) {
+        self.requireOwner();
         self.requireOperational();
         self.outboundNonce = msg.outboundNonce;
         self.apps = msg.apps;
