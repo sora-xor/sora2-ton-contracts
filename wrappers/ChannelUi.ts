@@ -90,20 +90,20 @@ export class Proof {
 }
 
 export class ChannelUi implements Contract {
-    static async init(owner: Address, peers: bigint[]) {
+    static async init(seqno: bigint, peers: bigint[]) {
         var peers_dict = Dictionary.empty();
         for (const peer of peers) {
             peers_dict.set(peer, true);
         }
-        return await wrapper.Channel.init(owner, peers_dict as Dictionary<bigint, boolean>);
+        return await wrapper.Channel.init(seqno, peers_dict as Dictionary<bigint, boolean>);
     }
 
-    static async fromInit(owner: Address, peers: bigint[]) {
+    static async fromInit(seqno: bigint, peers: bigint[]) {
         var peers_dict = Dictionary.empty();
         for (const peer of peers) {
             peers_dict.set(peer, true);
         }
-        return new ChannelUi(await wrapper.Channel.fromInit(owner, peers_dict as Dictionary<bigint, boolean>));
+        return new ChannelUi(await wrapper.Channel.fromInit(seqno, peers_dict as Dictionary<bigint, boolean>));
     }
 
     static fromAddress(address: Address) {
@@ -148,27 +148,15 @@ export class ChannelUi implements Contract {
         });
     }
 
-    async sendChangeOwner(provider: ContractProvider, via: Sender, newOwner: Address, queryId: bigint) {
-        this.app.send(provider, via, { value: toNano("0.1") }, {
-            $$type: "ChangeOwner",
-            newOwner,
-            queryId
-        });
-    }
-
     async getIsApp(provider: ContractProvider, app: Address): Promise<boolean> {
         return await this.app.getIsApp(provider, app);
     }
 
     async getApps(provider: ContractProvider): Promise<Address[]> {
-        return (await this.app.getApps(provider)).keys();
+        return (await this.app.getApps(provider)).apps.keys();
     }
 
     async getOutboundNonce(provider: ContractProvider): Promise<bigint> {
         return await this.app.getOutboundNonce(provider);
-    }
-
-    async getOwner(provider: ContractProvider): Promise<Address> {
-        return await this.app.getOwner(provider);
     }
 }

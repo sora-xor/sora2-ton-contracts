@@ -39,45 +39,59 @@ import { NetworkProvider } from '@ton/blueprint';
 import { Channel } from '../wrappers/Channel';
 
 export async function run(provider: NetworkProvider) {
-    const channel = provider.open(await Channel.fromInit(provider.sender().address!));
-    const tonApp = provider.open(await TonApp.fromInit(channel.address));
+    const channel = provider.open(await Channel.fromInit(provider.sender().address!, BigInt(0)));
+    const tonApp = provider.open(await TonApp.fromInit(channel.address, BigInt(0)));
 
-    await channel.send(
-        provider.sender(),
-        {
-            value: toNano('0.05'),
-        },
-        {
-            $$type: 'Deploy',
-            queryId: 1n,
-        }
-    );
+    if (await provider.isContractDeployed(channel.address)) {
+        console.log("Skip channel deploy");
 
-    await provider.waitForDeploy(channel.address, 20);
+    } else {
+        await channel.send(
+            provider.sender(),
+            {
+                value: toNano('0.05'),
+            },
+            {
+                $$type: 'Deploy',
+                queryId: 1n,
+            }
+        );
+        await provider.waitForDeploy(channel.address, 20);
+    }
 
-    await tonApp.send(
-        provider.sender(),
-        {
-            value: toNano('0.05'),
-        },
-        {
-            $$type: 'Deploy',
-            queryId: 1n,
-        }
-    );
 
-    await provider.waitForDeploy(tonApp.address, 20);
+    if (await provider.isContractDeployed(tonApp.address)) {
+        console.log("Skip TonApp deploy");
+    } else {
+        await tonApp.send(
+            provider.sender(),
+            {
+                value: toNano('0.05'),
+            },
+            {
+                $$type: 'Deploy',
+                queryId: 1n,
+            }
+        );
 
-    await channel.send(
-        provider.sender(),
-        {
-            value: toNano(0.2),
-        },
-        {
-            $$type: 'RegisterApp',
-            app: tonApp.address
-        }
-    );
+        await provider.waitForDeploy(tonApp.address, 20);
+    }
+
+
+    if (await channel.getIsApp(tonApp.address)) {
+        console.log("Skip app registration");
+    } else {
+        await channel.send(
+            provider.sender(),
+            {
+                value: toNano(0.2),
+            },
+            {
+                $$type: 'RegisterApp',
+                app: tonApp.address
+            }
+        );
+    }
     console.log({
         tonApp: tonApp.address,
         channel: channel.address
