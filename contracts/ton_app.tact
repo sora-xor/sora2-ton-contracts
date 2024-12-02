@@ -90,6 +90,7 @@ contract TonApp with Deployable, OwnableTransferable, Stoppable {
     
     receive(msg: MigrateInternal) {
         self.requireOperational();
+        require(context().value >= msg.amount, "Not enough value");
         self.lockedAmount += msg.amount;
     }
     

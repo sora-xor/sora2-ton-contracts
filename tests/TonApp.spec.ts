@@ -463,4 +463,41 @@ describe('TonApp', () => {
         expect(await anotherApp.getIsStopped()).toBe(true);
         expect(await tonApp.getIsStopped()).toBe(false);
     });
+
+    it('should accept migration', async () => {
+        const sender = await blockchain.treasury("sender");
+        const result = await tonApp.send(sender.getSender(),
+            { value: toNano(2), },
+            {
+                $$type: "MigrateInternal",
+                amount: toNano(1)
+            }
+        );
+        expect(result.transactions).toHaveTransaction({
+            from: sender.address,
+            to: tonApp.address,
+            success: true
+        });
+        expect((await blockchain.provider(tonApp.address).getState()).balance).toBeGreaterThanOrEqual(toNano(1));
+        expect(await tonApp.getLockedAmount()).toEqual(toNano(1));
+    });
+
+    it('should not accept migration if not enough value', async () => {
+        const sender = await blockchain.treasury("sender");
+        const result = await tonApp.send(sender.getSender(),
+            { value: toNano(2), },
+            {
+                $$type: "MigrateInternal",
+                amount: toNano(3)
+            }
+        );
+        expect(result.transactions).toHaveTransaction({
+            from: sender.address,
+            to: tonApp.address,
+            success: false
+        });
+        expect((await blockchain.provider(tonApp.address).getState()).balance).toBeGreaterThanOrEqual(toNano(0));
+        expect(await tonApp.getLockedAmount()).toEqual(toNano(0));
+    });
+
 });
