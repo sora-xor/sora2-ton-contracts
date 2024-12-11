@@ -1,16 +1,25 @@
 @Library('jenkins-library') _
 
-def selectedEnvironment = input(
-    id: 'environmentChoice',
-    message: 'Select tag:',
-    parameters: [
-        choice(
-            name: 'ENVIRONMENT',
-            choices: ['test', 'stage', 'prod'],
-            description: 'Select the build environment'
-        )
-    ]
-)
+
+List selectedEnvironment = [
+    choice(
+        choices: ['test', 'stage', 'prod'],
+        name: 'environment',
+        description: 'Choose the environment'
+    )
+]
+
+// def selectedEnvironment = input(
+//     id: 'environmentChoice',
+//     message: 'Select tag:',
+//     parameters: [
+//         choice(
+//             name: 'ENVIRONMENT',
+//             choices: ['test', 'stage', 'prod'],
+//             description: 'Select the build environment'
+//         )
+//     ]
+// )
 
 def dockerTagEnvironment = (selectedEnvironment == 'test') ? 'dev' : selectedEnvironment
 
