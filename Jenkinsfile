@@ -24,8 +24,8 @@ def pipeline = new org.js.AppPipeline(steps: this,
     dockerImageName: 'polkaswap/ton-explorer',
     buildDockerImage: 'build-tools/node:22-alpine',
     dockerRegistryCred: 'bot-polkaswap-rw',
-    preBuildCmds: ['cd dapp && yarn'],
-    buildCmds: ["yarn build --mode ${selectedEnvironment}"],
+    preBuildCmds: [],
+    buildCmds: ["cd dapp && yarn && yarn build --mode ${selectedEnvironment}"],
     testCmds: [],
     dockerImageTags: ['updated-ton-contracts': "${dockerTagEnvironment}"]
 )
