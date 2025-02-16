@@ -28,12 +28,62 @@
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// External messages for Channel contracts
+struct AddressSet {
+    data: map<Address, Bool>;
+    length: Int as uint16;
+    capacity: Int as uint16;
+}
 
-import "./bridge_call.tact";
+extends mutates fun add(self: AddressSet, value: Address) {
+    require((self.length + 1) <= self.capacity, "Address set is full");
+    require(self.data.get(value) != true, "Address already added");
+    self.data.set(value, true);
+    self.length += 1;
+}
 
+extends mutates fun remove(self: AddressSet, value: Address) {
+    require(self.data.del(value) == true, "App not found");
+    self.length -= 1;
+}
 
-message SendOutboundMessage {
-    message: SoraEncodedCall;
-    sender: Address;
+extends fun has(self: AddressSet, value: Address): Bool {
+    return self.data.get(value) == true;
+}
+
+extends fun len(self: AddressSet): Int {
+    return self.length;
+}
+
+fun emptyAddressSet(capacity: Int): AddressSet {
+    return AddressSet {data: emptyMap(), length: 0, capacity: capacity};
+}
+
+struct IntSet {
+    data: map<Int as uint256, Bool>;
+    length: Int as uint16;
+    capacity: Int as uint16;
+}
+
+extends mutates fun add(self: IntSet, value: Int) {
+    require((self.length + 1) <= self.capacity, "Int set is full");
+    require(self.data.get(value) != true, "Int already added");
+    self.data.set(value, true);
+    self.length += 1;
+}
+
+extends mutates fun remove(self: IntSet, value: Int) {
+    require(self.data.del(value) == true, "App not found");
+    self.length -= 1;
+}
+
+extends fun has(self: IntSet, value: Int): Bool {
+    return self.data.get(value) == true;
+}
+
+extends fun len(self: IntSet): Int {
+    return self.length;
+}
+
+fun emptyIntSet(capacity: Int): IntSet {
+    return IntSet {data: emptyMap(), length: 0, capacity: capacity};
 }

@@ -28,44 +28,37 @@
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import "./sora_primitives.tact";
-struct SoraTransferMessage {
-    token: Address;
-    sender: Address;
-    recipient: Bytes32;
-    amount: Int;
-}
-struct SoraTonTransferMessage {
-    sender: Address;
-    recipient: Bytes32;
-    amount: Int;
-}
-struct SoraEncodedCall {
-    data: Cell;
+// This constant will be interpreted as TON "master" contract in Collector
+const tonAddress: Address = newAddress(0, 0);
+
+// Before sending any message which could deploy contract, 
+// we should ensure that we have this amount additionally attached to message
+const defaultStorageReserve: Int = ton("0.001");
+
+struct Bytes32 {
+    data: Int as uint256;
 }
 
-fun newEncodedCall(data: Cell): SoraEncodedCall {
-    return SoraEncodedCall{data: data};
+/// Creates a new `Bytes32` instance filled with zeros.
+fun newBytes32(): Bytes32 {
+    return Bytes32{data: 0};
 }
 
-extends fun encode(self: SoraTransferMessage): SoraEncodedCall {
-    let builder: Builder = beginCell();
-    builder = builder.storeUint(0x0600, 16);
-    builder = builder.storeAlignedAddress(self.token);
-    builder = builder.storeAlignedAddress(self.sender);
-    builder = builder.storeBytes32(self.recipient);
-    builder = builder.storeUint(self.amount, 128);
-    return newEncodedCall(builder.endCell());
+extends fun loadBytes32(self: Slice): Bytes32 {
+    return Bytes32 {
+        data: self.loadUint(256)
+    };
 }
 
-extends fun encode(self: SoraTonTransferMessage): SoraEncodedCall {
-    let builder: Builder = beginCell();
-    builder = builder.storeUint(0x0600, 16);
-    builder = builder.storeUint(0, 16); // prefix(8) + workchain(8)
-    builder = builder.storeUint(0, 256); // hash
-    builder = builder.storeAlignedAddress(self.sender);
-    builder = builder.storeBytes32(self.recipient);
-    builder = builder.storeUint(self.amount, 128);
-    require(builder.bits() == 944, "Wrong call encoding");
-    return newEncodedCall(builder.endCell());
+extends fun storeBytes32(self: Builder, bytes: Bytes32): Builder {
+    return self.storeUint(bytes.data, 256);
+}
+
+extends fun storeAlignedAddress(self: Builder, address: Address): Builder {
+    let parsed = parseStdAddress(address.asSlice());
+    // Phase 1 bridge compatability
+    self = self.storeUint(4, 8);
+    self = self.storeInt(parsed.workchain, 8);
+    self = self.storeUint(parsed.address, 256);
+    return self;
 }

@@ -33,14 +33,20 @@
 //! used by Substrate nodes. This file extends those RPC definitions with
 //! capabilities that are specific to this project's runtime configuration.
 
-import { toNano } from '@ton/core';
-import { TonApp } from '../wrappers/TonApp';
+import { Dictionary, toNano } from '@ton/core';
+import { JettonApp } from '../wrappers/JettonApp';
 import { NetworkProvider } from '@ton/blueprint';
 import { Channel } from '../wrappers/Channel';
 
 export async function run(provider: NetworkProvider) {
-    const channel = provider.open(await Channel.fromInit(provider.sender().address!, BigInt(0)));
-    const tonApp = provider.open(await TonApp.fromInit(channel.address, BigInt(0)));
+    const peers = Dictionary.empty(Dictionary.Keys.BigInt(257), Dictionary.Values.Bool());
+    peers.set(BigInt("0x18cb0d295d767226261f4ae71fbecb6f3eb837f2cd19ed2870613582c24f14a8"), true);
+    peers.set(BigInt("0x8d2bc45a60d9dab43b3facd01e4feb1e7cbcbd15cbaa9d2805c5eba2215f5a31"), true);
+    peers.set(BigInt("0x2e9b64866711d5d8886af7e7a8ec7d5f0edf1b259a676c9397e96898252a5450"), true);
+    peers.set(BigInt("0x60cfbc3bdcef2f6dd75f982e8eaf56df4a21f8632b623128317dc4862d61c145"), true);
+    peers.set(BigInt("0x2225fc10834f9d7c5dea087e48ff13da3a01f9ce1c289db40ccbdd71f701f3fe"), true);
+    const channel = provider.open(await Channel.fromInit(4n, peers, null));
+    const tonApp = provider.open(await JettonApp.fromInit(channel.address, BigInt(0)));
 
     if (await provider.isContractDeployed(channel.address)) {
         console.log("Skip channel deploy");
@@ -77,21 +83,6 @@ export async function run(provider: NetworkProvider) {
         await provider.waitForDeploy(tonApp.address, 20);
     }
 
-
-    if (await channel.getIsApp(tonApp.address)) {
-        console.log("Skip app registration");
-    } else {
-        await channel.send(
-            provider.sender(),
-            {
-                value: toNano(0.2),
-            },
-            {
-                $$type: 'RegisterApp',
-                app: tonApp.address
-            }
-        );
-    }
     console.log({
         tonApp: tonApp.address,
         channel: channel.address

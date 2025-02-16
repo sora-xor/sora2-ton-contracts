@@ -28,32 +28,52 @@
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-struct Apps {
-    apps: map<Address, Bool>;
-    length: Int;
-}
-const MaxAppsSize: Int = 20;
+trait ReserveFee {
+    abstract const minTonsForStorage: Int;
 
-extends mutates fun add(self: Apps, app: Address) {
-    require((self.length + 1) <= MaxAppsSize, "Apps set is full");
-    require(self.apps.get(app) != true, "App already registered");
-    self.apps.set(app, true);
-    self.length += 1;
-}
+    // Reserve storage fee and return it
+    // Usable for intermediate calls
+    fun reserveStorageFee() {
+        nativeReserve(self.minTonsForStorage, 0);
+    }
 
-extends mutates fun remove(self: Apps, app: Address) {
-    require(self.apps.del(app) == true, "App not found");
-    self.length -= 1;
-}
+    fun calculateStorageFee(value: Int): Int {
+        let tonBalanceBeforeMsg: Int = (myBalance() - value);
+        let storageFee: Int = (self.minTonsForStorage - min(tonBalanceBeforeMsg, self.minTonsForStorage));
+        return storageFee;
+    }
+    
+    // Returns available message value which should be sent further and reserve storage fee
+    // Usable for external entrypoints
+    fun requireFee(value: Int, forwardFee: Int, processingFee: Int): Int {
+        dump("Require fee");
+        let storageFee = self.calculateStorageFee(value);
+        dump(myBalance());
+        dump(value);
+        dump(storageFee);
+        dump(forwardFee);
+        dump(processingFee);
+        dump(forwardFee + processingFee + storageFee);
+        require(value >= forwardFee + processingFee + storageFee, "Not enough fee to call");
+        dump("Fee is enough");
+        return forwardFee + processingFee + storageFee;
+    }
 
-extends fun has(self: Apps, app: Address): Bool {
-    return self.apps.get(app) == true;
-}
+    fun forwardBalance(to: Address, msg: Cell?) {
+        send(SendParameters {
+            to: to,
+            value: 0,
+            mode: SendRemainingBalance | SendBounceIfActionFail,
+            body: msg
+        });
+    }
 
-extends fun len(self: Apps): Int {
-    return self.length;
-}
-
-fun emptyApps(): Apps {
-    return Apps{apps: emptyMap(), length: 0};
+    fun forwardBalanceIgnoreErrors(to: Address, msg: Cell?) {
+        send(SendParameters {
+            to: to,
+            value: 0,
+            mode: SendRemainingBalance | SendIgnoreErrors,
+            body: msg
+        });
+    }
 }

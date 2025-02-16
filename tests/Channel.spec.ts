@@ -37,12 +37,13 @@ import { Blockchain, SandboxContract, TreasuryContract, EventMessageSent, Treasu
 import { Address, address, beginCell, Builder, toNano } from '@ton/core';
 import '@ton/test-utils';
 import assert from 'assert';
-import { Channel, loadOutboundMessage, loadSendOutboundMessage, storeApps, storeOutboundMessage, storeSendOutboundMessage } from '../wrappers/Channel';
+import { Channel, loadOutboundMessage, loadSendOutboundMessage, storeAddressSet, storeOutboundMessage, storeSendOutboundMessage } from '../wrappers/Channel';
 import { TestChannel } from './TestChannel';
 
 describe('Channel', () => {
     let blockchain: Blockchain;
     let deployer: SandboxContract<TreasuryContract>;
+    let relayer: SandboxContract<TreasuryContract>;
     let app: SandboxContract<TreasuryContract>;
     let channel: TestChannel;
 
@@ -50,9 +51,10 @@ describe('Channel', () => {
         blockchain = await Blockchain.create();
 
         deployer = await blockchain.treasury('deployer');
+        relayer = await blockchain.treasury('relayer');
         app = await blockchain.treasury('app');
 
-        channel = await TestChannel.fromInit(blockchain, 0n, []);
+        channel = await TestChannel.fromInit(blockchain, 0n, 5n);
         await channel.deploy(deployer);
     });
 
@@ -62,47 +64,36 @@ describe('Channel', () => {
     });
 
     it('should register app', async () => {
-        await channel.registerApp(deployer, app.address);
+        await channel.registerApp(relayer, app.address);
     });
 
     it('should remove app', async () => {
-        await channel.registerApp(deployer, app.address);
-        await channel.removeApp(deployer, app.address);
+        await channel.registerApp(relayer, app.address);
+        await channel.removeApp(relayer, app.address);
     });
 
     it('should not remove non existing app', async () => {
-        await channel.removeApp(deployer, app.address, false, false);
-    });
-
-    it('should not register app if not owner', async () => {
-        const sender = await blockchain.treasury("sender");
-        await channel.registerApp(sender, app.address, false, false);
-    });
-
-    it('should not remove app if not owner', async () => {
-        await channel.registerApp(deployer, app.address);
-        const sender = await blockchain.treasury("sender");
-        await channel.removeApp(sender, app.address, false, true);
+        await channel.removeApp(relayer, app.address, false, false);
     });
 
     it('should not register the same app', async () => {
-        await channel.registerApp(deployer, app.address);
-        await channel.registerApp(deployer, app.address, false, true);
+        await channel.registerApp(relayer, app.address);
+        await channel.registerApp(relayer, app.address, false, true);
     });
 
     it("should not register more than 20 apps", async () => {
         for (let i = 0; i < 20; i++) {
             const app = await blockchain.treasury(`app-${i}`);
-            await channel.registerApp(deployer, app.address);
+            await channel.registerApp(relayer, app.address);
         }
         const app = await blockchain.treasury("last-app");
-        await channel.registerApp(deployer, app.address, false, false);
+        await channel.registerApp(relayer, app.address, false, false);
     });
 
     it('should submit message', async () => {
-        await channel.registerApp(deployer, app.address);
+        await channel.registerApp(relayer, app.address);
         const sender = await blockchain.treasury("sender");
-        const result = await channel.send(
+        const result = await channel.sendRaw(
             app.getSender(),
             { value: toNano(1), },
             {
@@ -148,7 +139,7 @@ describe('Channel', () => {
 
     it('should not submit message from wrong app', async () => {
         const sender = await blockchain.treasury("sender");
-        const result = await channel.send(
+        const result = await channel.sendRaw(
             app.getSender(),
             { value: toNano(1), },
             {
@@ -181,73 +172,5 @@ describe('Channel', () => {
         });
         expect(result.externals).toHaveLength(0);
         expect(Number(await channel.getOutboundNonce())).toBe(0);
-    });
-
-    it('should migrate', async () => {
-        await channel.registerApp(deployer, app.address);
-        const anotherChannel = await TestChannel.fromInit(blockchain, 0n, []);
-        await anotherChannel.deploy(deployer);
-        const result = await channel.send(
-            deployer.getSender(),
-            { value: toNano(1), },
-            { $$type: "Migrate", receiver: anotherChannel.address }
-        );
-        expect(result.transactions).toHaveTransaction({
-            from: deployer.address,
-            to: channel.address,
-            success: true,
-        });
-        expect(result.transactions).toHaveTransaction({
-            from: channel.address,
-            to: anotherChannel.address,
-            success: true,
-        });
-        expect(await channel.getStopped()).toBeTruthy();
-        expect(beginCell().store(storeApps(await channel.getApps())).asCell())
-            .toEqualCell(beginCell().store(storeApps(await anotherChannel.getApps())).asCell());
-    });
-
-    it('should not migrate from wrong account', async () => {
-        await channel.registerApp(deployer, app.address);
-        const sender = await blockchain.treasury("sender");
-        const result = await channel.send(
-            sender.getSender(),
-            { value: toNano(1), },
-            { $$type: "Migrate", receiver: channel.address }
-        );
-        expect(result.transactions).toHaveTransaction({
-            from: sender.address,
-            to: channel.address,
-            success: false,
-        });
-        expect(await channel.getStopped()).toBeFalsy();
-    });
-
-    it('should not accept migration from wrong account', async () => {
-        await channel.registerApp(deployer, app.address);
-        const anotherChannel = await TestChannel.fromInit(blockchain, 0n, []);
-        await anotherChannel.deploy(deployer);
-        const result = await channel.send(
-            deployer.getSender(),
-            { value: toNano(1), },
-            { $$type: "Migrate", receiver: anotherChannel.address }
-        );
-        expect(result.transactions).toHaveTransaction({
-            from: deployer.address,
-            to: channel.address,
-            success: true,
-        });
-        expect(result.transactions).toHaveTransaction({
-            from: channel.address,
-            to: anotherChannel.address,
-            success: false,
-        });
-        expect(result.transactions).toHaveTransaction({
-            from: anotherChannel.address,
-            to: channel.address,
-            success: true,
-            inMessageBounced: true
-        });
-        expect(await channel.getStopped()).toBeFalsy();
     });
 });
